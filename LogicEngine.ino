@@ -619,8 +619,15 @@ void SetRow(uint8_t row, unsigned char RowState, CRGB color){
         }
       }
     }
-  }
-  
+  } 
+}
+
+//////////////////////
+// Set String
+void setText(byte logicDisplay, const char* message)
+{
+  strncpy(logicText[logicDisplay-1], message, MAXSTRINGSIZE);
+  logicText[logicDisplay-1][MAXSTRINGSIZE]=0; // just in case
 }
 
 
@@ -630,7 +637,7 @@ void SetRow(uint8_t row, unsigned char RowState, CRGB color){
 //                        1 - Front Top, 
 //                        2 - Front Bottom,
 //                        3 - Rear
-void scrollMessage(const unsigned char * messageString, int logicDisplay, int mode, CRGB color) {
+void scrollMessage(char messageString[], int logicDisplay, int mode, CRGB color) {
 
   if (logicDisplay == 0)
   {
@@ -837,7 +844,7 @@ void loop() {
    
 }
 
-const unsigned char scrolly[] PROGMEM ={"ABCDE  "};
+const unsigned char scrolly[] PROGMEM ={"Zz{|}~  "};
 
 // The following takes the Pattern code, and executes the relevant function
 // This allows i2c and serial inputs to use the same function to start patterns
@@ -873,12 +880,16 @@ void runPattern(int logicDisplay, int pattern) {
       break;
     case 2:
       // Set display to Top front
-      scrollMessage(scrolly, logicDisplay, 1, 0x0000ff);
+      //scrollMessage(scrolly, logicDisplay, 1, 0x0000ff);
       break;
     case 3:
       // Set display to Top front
-      scrollMessage(scrolly, logicDisplay, 1, 0xff0000);
+      //scrollMessage(scrolly, logicDisplay, 1, 0xff0000);
       break;
+    case 100:
+      // Set display to Top front
+      scrollMessage(logicText[logicDisplay-1], logicDisplay, 1, 0x0000ff);
+      break;      
     default:
       DEBUG_PRINT("Pattern "); DEBUG_PRINT(pattern); DEBUG_PRINT_LN(" not valid.  Ignoring");
       lastEventCode[logicDisplay-1] = currentPattern;
@@ -1035,14 +1046,13 @@ void parseCommand(char* inputStr)
   if(!length>pos) goto beep;            // invalid, no command after address
   
   // special case of M commands, which take a string argument
-  // Not currently implemented!!!!!
-  //if(inputStr[pos]=='M')
-  //{
-  //  pos++;
-  //  if(!length>pos) goto beep;     // no message argument
-  //  doMcommand(address, inputStr+pos);   // pass rest of string as argument
-  //  return;                     // exit
-  //}
+  if(inputStr[pos]=='M')
+  {
+    pos++;
+    if(!length>pos) goto beep;     // no message argument
+    doMcommand(address, inputStr+pos);   // pass rest of string as argument
+    return;                     // exit
+  }
   
   // other commands, get the numerical argument after the command character
 
@@ -1122,6 +1132,32 @@ void parseCommand(char* inputStr)
 
 ////////////////////
 // Command Executors
+
+// set text command
+void doMcommand(int address, char* message)
+{
+
+  DEBUG_PRINT_LN();
+  DEBUG_PRINT("Command: M ");
+  DEBUG_PRINT("Address: ");
+  DEBUG_PRINT(address);
+  DEBUG_PRINT(" Argument: ");
+  DEBUG_PRINT_LN(message);
+
+  //serialPort->println();
+  //serialPort->print("Command: M ");
+  //serialPort->print("Address: ");
+  //serialPort->print(address);
+  //serialPort->print(" Argument: ");
+  //serialPort->print(message);
+
+  //TODO : Text on all
+  //if(address==0) {setText(0, message); setText(1, message); setText(2, message);}
+  if(address==1) {setText(FLD_TOP, message);}
+  if(address==2) {setText(FLD_BOTTOM, message);}
+  if(address==3) {setText(RLD, message);}  
+  
+}
 
 // various commands for states and effects
 void doTcommand(int address, int argument, int timing)
