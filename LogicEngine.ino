@@ -657,6 +657,9 @@ void scrollMessage(char messageString[], int logicDisplay, int mode, CRGB color)
     // Count the number of times we've moved the current character
     currentCharShiftsRemaining[logicDisplay-1] = 0;
     totalShiftsForChar[logicDisplay-1] = 0;
+
+    // Clear temp buffer to save the end of the last message being re-displayed.
+    for (int i=0; i<10; i++) bufferLong[logicDisplay-1][i] = 0;
     
     //DEBUG_PRINT("String Length "); DEBUG_PRINT_LN(maxScrollCount[logicDisplay]);
   }
@@ -764,7 +767,7 @@ void loadBufferLong(int ascii, int logicDisplay, int mode){
             else if (mode == 2)
             {
               // Read from the Aurek Besh table
-              //c = pgm_read_byte_near(aurabesh5x5 + ((ascii - 0x20) * 6) + a);     // Index into character table to get row data// To Do!!
+              c = pgm_read_byte_near(aurabesh5x5 + ((ascii - 0x20) * 6) + a);     // Index into character table to get row data// To Do!!
             }
             unsigned long x = bufferLong[logicDisplay-1][a*2];     // Load current scroll buffer
             x = x | c;                              // OR the new character onto end of current
@@ -778,7 +781,7 @@ void loadBufferLong(int ascii, int logicDisplay, int mode){
         }
         else if (mode == 2)
         {
-           totalShiftsForChar[logicDisplay-1] = pgm_read_byte_near(aurabesh5x7 +((ascii - 0x20) * 6) + 5);     // Index into character table for kerning data
+           totalShiftsForChar[logicDisplay-1] = pgm_read_byte_near(aurabesh5x5 +((ascii - 0x20) * 6) + 5);     // Index into character table for kerning data
         }
     }
 }
@@ -844,7 +847,7 @@ void loop() {
    
 }
 
-const unsigned char scrolly[] PROGMEM ={"Zz{|}~  "};
+char scrolly[] PROGMEM ={"{}|~ "};
 
 // The following takes the Pattern code, and executes the relevant function
 // This allows i2c and serial inputs to use the same function to start patterns
@@ -880,7 +883,9 @@ void runPattern(int logicDisplay, int pattern) {
       break;
     case 2:
       // Set display to Top front
-      //scrollMessage(scrolly, logicDisplay, 1, 0x0000ff);
+      //scrollMessage(scrolly, logicDisplay, 2, 0x0000ff);
+      setText(logicDisplay, scrolly);
+      scrollMessage(logicText[logicDisplay-1], logicDisplay, 2, 0x0000ff);
       break;
     case 3:
       // Set display to Top front
