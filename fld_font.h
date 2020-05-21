@@ -4,10 +4,10 @@
 /////////////////////////////
 ////////////////////////////
 
-const long scrollDelay = 200;   // adjust scrolling speed
+unsigned long scrollDelay[3] = {75,75,75};   // adjust scrolling speed
 unsigned long bufferLong [3][10] = {0};
 
-#define MAXSTRINGSIZE 64 // maximim letters in a ligic display message
+#define MAXSTRINGSIZE 64 // maximim letters in a logic display message
 char logicText[3][MAXSTRINGSIZE];
 
 // This is more challenging to see the characters, but way more efficient in terms of code space.

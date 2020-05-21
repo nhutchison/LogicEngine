@@ -118,6 +118,7 @@ DEFINE_GRADIENT_PALETTE( rear_gp2 ) {
 255,   0,    0,    0};  //black
 
 CRGBPalette16 frontTargetPalette( front_gp);
+CRGBPalette16 frontCurrentPalette( front_gp);
 CRGBPalette16 rearCurrentPalette( rear_gp);
 CRGBPalette16 rearTargetPalette( rear_gp);
 

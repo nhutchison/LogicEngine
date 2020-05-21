@@ -432,46 +432,58 @@ void updateTeeces()
 // Patterning code
 ///
 
-void randomBlinkies(int logicDisplay){
+void randomBlinkies(int logicDisplay, int mode){
   // If we want to switch between palettes, we can
-  //ChangePalettePeriodically();
 
-  // Crossfade current palette slowly toward the target palette
-  //
-  // Each time that nblendPaletteTowardPalette is called, small changes
-  // are made to currentPalette to bring it closer to matching targetPalette.
-  // You can control how many changes are made in each call:
-  //   - the default of 24 is a good balance
-  //   - meaningful values are 1-48.  1=veeeeeeeery slow, 48=quickest
-  //   - "0" means do not change the currentPalette at all; freeze
+  // If it is time to update the text
+  if (checkDelay(logicDisplay)) {
+    /*
+    if (mode = 2) 
+    {
+      ChangePalettePeriodically(logicDisplay);
   
-  uint8_t maxChanges = 7; 
-  //nblendPaletteTowardPalette( currentPalette, frontTargetPalette, maxChanges);
-  //nblendPaletteTowardPalette( rearCurrentPalette, rearTargetPalette, maxChanges);
-
-  static uint8_t startIndex = 0;
-  startIndex = startIndex + 1; /* motion speed */
-  startIndex %= 255;
-  if (logicDisplay == 0) {
-    FillLEDsFromPaletteColors(FLD_TOP);
-    FillLEDsFromPaletteColors(FLD_BOTTOM);
-    FillLEDsFromPaletteColors(RLD);
-  }
-  else if (logicDisplay == FLD_TOP) {
-    FillLEDsFromPaletteColors(FLD_TOP);
-  } else if (logicDisplay == FLD_BOTTOM) {
-    FillLEDsFromPaletteColors(FLD_BOTTOM);
-  } else if (logicDisplay == RLD) {
-    FillLEDsFromPaletteColors(RLD);
-  } else {
-    DEBUG_PRINT_LN("Invalid Display address received");
-  }
+      // Crossfade current palette slowly toward the target palette
+      //
+      // Each time that nblendPaletteTowardPalette is called, small changes
+      // are made to currentPalette to bring it closer to matching targetPalette.
+      // You can control how many changes are made in each call:
+      //   - the default of 24 is a good balance
+      //   - meaningful values are 1-48.  1=veeeeeeeery slow, 48=quickest
+      //   - "0" means do not change the currentPalette at all; freeze
   
+      // Because of the state system, although we update less frequently, we bash throught this too
+      // quickly ... Update to be fully state driven!
+      uint8_t maxChanges = 2;
+      if (logicDisplay < 3) {
+        nblendPaletteTowardPalette( frontCurrentPalette, frontTargetPalette, maxChanges);
+      }
+      else if (logicDisplay == 3) {
+        nblendPaletteTowardPalette( rearCurrentPalette, rearTargetPalette, maxChanges);
+      }
+    }
+  */
+    static uint8_t startIndex = 0;
+    startIndex = startIndex + 1; /* motion speed */
+    startIndex %= 255;
+    if (logicDisplay == 0) {
+      FillLEDsFromPaletteColors(FLD_TOP);
+      FillLEDsFromPaletteColors(FLD_BOTTOM);
+      FillLEDsFromPaletteColors(RLD);
+    }
+    else if (logicDisplay == FLD_TOP) {
+      FillLEDsFromPaletteColors(FLD_TOP);
+    } else if (logicDisplay == FLD_BOTTOM) {
+      FillLEDsFromPaletteColors(FLD_BOTTOM);
+    } else if (logicDisplay == RLD) {
+      FillLEDsFromPaletteColors(RLD);
+    } else {
+      DEBUG_PRINT_LN("Invalid Display address received");
+    }
+  
+    updateDisplays();
 
-  updateDisplays();
-  //TODO:
-  // This is globally delaying ... want to set this to per display
-  FastLED.delay(1000 / UPDATES_PER_SECOND);
+    set_delay(logicDisplay, 1000 / UPDATES_PER_SECOND);
+  }
 }
 
 
@@ -492,21 +504,6 @@ void FillLEDsFromPaletteColors(int logicDisplay)
     start_row = 5;
     end_row = 10;
   }
-    /*
-    // Original "algorithm to blast the panel via LED number
-    for( int i = 0; i < NUM_FRONT_LEDS; i++) {
-      // So, change the following ... leave only one of these lines
-      // Alternatively change the multiplier in the wave function call (sin8i*yy)
-      //front_leds[i] = ColorFromPalette( frontTargetPalette, colorIndex + sin8(i*16), brightness);
-      front_leds[i] = ColorFromPalette( frontTargetPalette, colorIndex + sin8(i*32), brightness);
-      //front_leds[i] = ColorFromPalette( frontTargetPalette, colorIndex + cubicwave8(i*16), brightness);
-      //front_leds[i] = ColorFromPalette( frontTargetPalette, colorIndex + cos8(i*16), brightness);
-      colorIndex += COLOR_STEP;
-      colorIndex %= 255;
-    }
-*/
-
-  //TODO - Pixel 0 is off ... WTF?
   if ((logicDisplay == FLD_TOP) || (logicDisplay == FLD_BOTTOM)){
     // Updated algorithm that uses the matrix and can manage dead pixels ;)
     // Also helps to remove "waves" from the updates.
@@ -531,16 +528,6 @@ void FillLEDsFromPaletteColors(int logicDisplay)
       }
     }
   } else if (logicDisplay == RLD){
-    /*
-    // Original Algorithm, that balsts the panel via LED number
-    uint8_t randomShift;
-    static uint8_t colorIndex = 0;
-    for( int i = 0; i < NUM_REAR_LEDS; i++) {
-      rear_leds[i] = ColorFromPalette( rearCurrentPalette, colorIndex + sin8(i*16), brightness);
-      colorIndex += REAR_COLOR_STEP;
-      //colorIndex %= 255;
-    }
-*/
     for (int i=0; i< REAR_COL; i++){
       for (int y=0; y<REAR_ROW; y++){
         chanceChange = random(100);
@@ -557,21 +544,29 @@ void FillLEDsFromPaletteColors(int logicDisplay)
         }
       }
     }
-    
   }
-  
 }
 
 
-void ChangePalettePeriodically()
+void ChangePalettePeriodically(int logicDisplay)
 {
-  uint8_t secondHand = (millis() / 1000) % 20;
+  uint8_t secondHand = (millis() / 1000) % 40;
   static uint8_t lastSecond = 99;
   
   if( lastSecond != secondHand) {
     lastSecond = secondHand;
-    if( secondHand ==  0)  { rearTargetPalette = rear_gp; }
-    if( secondHand == 10)  { rearTargetPalette = rear_gp2; }
+    if( secondHand ==  0)  { 
+      if (logicDisplay == 3) rearTargetPalette = front_gp;
+      } else {
+        frontTargetPalette = rear_gp;
+      }
+    if( secondHand == 20)  { 
+      if (logicDisplay == 3) {
+        rearTargetPalette = rear_gp; 
+      } else {
+        frontTargetPalette = front_gp;
+      }
+    }
   }
 }
 
@@ -694,7 +689,7 @@ void scrollMessage(char messageString[], int logicDisplay, int mode, CRGB color)
         printScrollBuffer(logicDisplay, color);
         updateLed = 1;
       }
-      set_delay(logicDisplay, scrollDelay);
+      set_delay(logicDisplay, scrollDelay[logicDisplay-1]);
     } 
   }
 
@@ -706,14 +701,11 @@ void scrollMessage(char messageString[], int logicDisplay, int mode, CRGB color)
   //DEBUG_PRINT("Char "); DEBUG_PRINT(scrollCount[logicDisplay]); DEBUG_PRINT(" of "); DEBUG_PRINT_LN(maxScrollCount[logicDisplay]);
   //DEBUG_PRINT("Char Width: "); DEBUG_PRINT_LN(currentCharShiftsRemaining[logicDisplay]);
 
-  // Mught need updating for multi display message stuff ....
+  // Might need updating for multi display message stuff ....
   if ((currentCharShiftsRemaining[logicDisplay-1] == 0) && (maxScrollCount[logicDisplay-1] == scrollCount[logicDisplay-1])) {
     DEBUG_PRINT_LN("Scrolling Done ");
     lastEventCode[logicDisplay-1] = defaultPattern;
     patternRunning[logicDisplay-1] = false;
-  }
-  else {
-    //DEBUG_PRINT_LN("NOT Done ");
   }
 }
 
@@ -856,7 +848,7 @@ void runPattern(int logicDisplay, int pattern) {
 
   if (logicDisplay == 0)
   {
-    DEBUG_PRINT_LN("NEED TO ADD ALL HANDLING");
+    DEBUG_PRINT_LN("Should never receive a logic address of 0.");
     return;
   }
 
@@ -867,7 +859,6 @@ void runPattern(int logicDisplay, int pattern) {
   {
     lastEventCode[logicDisplay-1] = pattern;
     firstTime[logicDisplay-1] = true;
-    //DEBUG_PRINT("Pattern "); DEBUG_PRINT(pattern); DEBUG_PRINT(" on LD "); DEBUG_PRINT(logicDisplay); DEBUG_PRINT_LN(" received");
   }
   else
   {
@@ -879,7 +870,7 @@ void runPattern(int logicDisplay, int pattern) {
       allOFF(logicDisplay, true);
       break;
     case 1:
-      randomBlinkies(logicDisplay);
+      randomBlinkies(logicDisplay, 1);
       break;
     case 2:
       // Set display to Top front
@@ -888,8 +879,8 @@ void runPattern(int logicDisplay, int pattern) {
       scrollMessage(logicText[logicDisplay-1], logicDisplay, 2, 0x0000ff);
       break;
     case 3:
-      // Set display to Top front
-      //scrollMessage(scrolly, logicDisplay, 1, 0xff0000);
+      // Random blinkies with colorshifts
+      randomBlinkies(logicDisplay, 2);
       break;
     case 100:
       // Set display to Top front
@@ -1110,6 +1101,9 @@ void parseCommand(char* inputStr)
     case 'A':                           // A command does the same as D command, so just fall though.
       doDcommand(address);
       break;
+    case 'C':                           // Set the speed for the scrolling text.
+      doCcommand(address, argument);
+      break;
     case 'P':    
       if(!hasArgument) goto beep;       // invalid, no argument after command
       doPcommand(address, argument);
@@ -1232,8 +1226,42 @@ void doDcommand(int address)
   DEBUG_PRINT_LN(address); 
   */
 
+  // Set the default scroll speed back to default. (75)
+  for (int i=0; i<3; i++){
+      scrollDelay[i] = 75;
+    }
+  
   for (int i=1; i<4; i++) {
     runPattern(i, defaultPattern);
+  }
+}
+
+void doCcommand(int address, int argument)
+{
+  /*
+  DEBUG_PRINT_LN();
+  DEBUG_PRINT("Command: C ");
+  DEBUG_PRINT("Address: ");
+  DEBUG_PRINT_LN(address); 
+  DEBUG_PRINT(" Argument: ");
+  DEBUG_PRINT_LN(argument);
+  */
+  
+  // If setting speed for all, set the speed for all
+  if (address == 0){
+    for (int i=0; i<3; i++){
+      scrollDelay[i] = argument;
+    }
+  }
+  
+  // Else set the individual speeds.
+  if (address == FLD_TOP)
+  {
+    scrollDelay[0] = argument;
+  }   else if (address == FLD_BOTTOM) {
+    scrollDelay[1] = argument;
+  }  else if (address == RLD) {
+   scrollDelay[2] = argument;
   }
 }
 
