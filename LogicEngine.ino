@@ -4,8 +4,9 @@
 
 // Local .h files in the same directory as the main sketch
 #include "config.h"
-//#include "font_fld_5px.h"
+// font files for front and rear logics.
 #include "fld_font.h"
+#include "rld_font.h"
 
 
 ///
@@ -576,50 +577,67 @@ void ChangePalettePeriodically(int logicDisplay)
 //
 ///
 
-void SetRow(uint8_t row, unsigned char RowState, CRGB color){
-  //for(int Col=0; Col<8; Col++){
-  //  VMagicPanel[LEDRow][Col]=((RowState >> Col) & 1);
-  //}
-  // If row is less than 5, it's the top logic, else it's the bottom logic
-  if (row < FRONT_ROW) {
-    for (int i = 0; i < FRONT_COL; i++) {
-      int8_t ledIndex = frontTopLedMatrix[i][row];
-      if (ledIndex != -1) {
-        if ((RowState >> ((FRONT_COL - 1) - i)) & 1) {
-          //DEBUG_PRINT_LN("Pix on");
-          front_leds[ledIndex] = color;
-        }
-        else
-        {
-          front_leds[ledIndex] = 0x000000;
-          //DEBUG_PRINT_LN("Pix off");
+void SetRow(int logicDisplay, uint8_t row, unsigned char RowState, CRGB color){
+
+  if ((logicDisplay == FLD_TOP) || (logicDisplay == FLD_BOTTOM)){
+    // If row is less than 5, it's the top logic, else it's the bottom logic
+    if (row < FRONT_ROW) {
+      for (int i = 0; i < FRONT_COL; i++) {
+        int8_t ledIndex = frontTopLedMatrix[i][row];
+        if (ledIndex != -1) {
+          if ((RowState >> ((FRONT_COL - 1) - i)) & 1) {
+            front_leds[ledIndex] = color;
+          }
+          else
+          {
+            front_leds[ledIndex] = 0x000000;
+          }
         }
       }
     }
-  }
-  // it's the bottom logic
-  else
-  {
-    for (int i = 0; i < FRONT_COL; i++) {
-      int8_t ledIndex = frontBottomLedMatrix[i][row - FRONT_ROW];
-      if (ledIndex != -1) {
-        if ((RowState >> ((FRONT_COL - 1) - i)) & 1) {
-          //DEBUG_PRINT_LN("Pix on");
-          front_leds[ledIndex] = color;
-        }
-        else
-        {
-          front_leds[ledIndex] = 0x000000;
-          //DEBUG_PRINT_LN("Pix off");
+    // it's the bottom logic
+    else
+    {
+      for (int i = 0; i < FRONT_COL; i++) {
+        int8_t ledIndex = frontBottomLedMatrix[i][row - FRONT_ROW];
+        if (ledIndex != -1) {
+          if ((RowState >> ((FRONT_COL - 1) - i)) & 1) {
+            front_leds[ledIndex] = color;
+          }
+          else
+          {
+            front_leds[ledIndex] = 0x000000;
+          }
         }
       }
     }
   } 
+  else if (logicDisplay == RLD) 
+  {
+    // Toggle the following lines to change the italic "lean" from Left to Right etc.  
+    // Some characters need tweaking, but we can easily have a left and right leaning font :)
+    //for (int i = 0; i < REAR_COL+2; i++) {
+    //  int8_t ledIndex = rearScrollLedMatrixRight[i][row];
+    for (int i = 0; i < REAR_COL+1; i++) {
+      int8_t ledIndex = rearScrollLedMatrixLeft[i][row];
+      if (ledIndex != -1) {
+        if ((RowState >> ((REAR_COL - 1) - i)) & 1) {
+          //DEBUG_PRINT(ledIndex);
+          rear_leds[ledIndex] = color;
+        }
+        else
+        {
+          rear_leds[ledIndex] = 0x000000;
+        }
+      }
+    }
+    //DEBUG_PRINT_LN("");
+  }
 }
 
 //////////////////////
 // Set String
-void setText(byte logicDisplay, const char* message)
+void setText(int logicDisplay, const char* message)
 {
   strncpy(logicText[logicDisplay-1], message, MAXSTRINGSIZE);
   logicText[logicDisplay-1][MAXSTRINGSIZE]=0; // just in case
@@ -711,7 +729,15 @@ void scrollMessage(char messageString[], int logicDisplay, int mode, CRGB color)
 
 // Rotate the buffer
 void shiftBuffer(int logicDisplay){
-    for (int a=0;a<5;a++){                      // Loop 5 times for a 5x5 font, once per row.
+
+  int loop_rows = 5;
+  if ((logicDisplay == FLD_TOP) || (logicDisplay == FLD_BOTTOM)){
+    loop_rows = 5;
+  } else if (logicDisplay == RLD) {
+    loop_rows = 4;
+  }
+  
+    for (int a=0;a<loop_rows;a++){                      // Loop 5 times for a 5x5 font, once per row.
         unsigned long x = bufferLong[logicDisplay-1][a*2];     // Get low buffer entry
         byte b = bitRead(x,31);                 // Copy high order bit that gets lost in rotation
         x = x<<1;                               // Rotate left one bit
@@ -726,40 +752,69 @@ void shiftBuffer(int logicDisplay){
 // Display Buffer on LED matrix
 void printScrollBuffer(int logicDisplay, CRGB color){
   int row;
-  for (int a=0;a<5;a++){                    // Loop 5 times for a 5x5 font  // Once per row.
+  int loop_rows = 5;
+  if ((logicDisplay == FLD_TOP) || (logicDisplay == FLD_BOTTOM)){
+    loop_rows = 5;
+  } else if (logicDisplay == RLD) {
+    loop_rows = 4;
+  }
+
+  
+  for (int a=0;a<loop_rows;a++){                    // Loop 5 times for a 5x5 font  // Once per row.
     unsigned long x = bufferLong[logicDisplay-1][a*2+1];   // Get high buffer entry
     byte y = x;                             // Mask off first character
-    if (logicDisplay == FLD_TOP) {
+    if ((logicDisplay == FLD_TOP) ||  (logicDisplay == RLD)){
       row = a;
     }
     else if (logicDisplay == FLD_BOTTOM) {
       row = a+5;
     }
-    SetRow(row, y, color);
+    SetRow(logicDisplay, row, y, color);
     x = bufferLong[logicDisplay-1][a*2];                   // Get low buffer entry
     y = (x>>24);                            // Mask off second character
-    SetRow(row, y, color);
+    SetRow(logicDisplay, row, y, color);
     y = (x>>16);                            // Mask off third character
-    SetRow(row, y, color);
+    SetRow(logicDisplay, row, y, color);
     y = (x>>8);                             // Mask off forth character
-    SetRow(row, y, color);
+    SetRow(logicDisplay, row, y, color);
   }
 }
 
 // Load character into scroll buffer
 void loadBufferLong(int ascii, int logicDisplay, int mode){
+
+  int loop_rows = 5;
+  if ((logicDisplay == FLD_TOP) || (logicDisplay == 2)){
+    loop_rows = 5;
+  } else if (logicDisplay == RLD) {
+    loop_rows = 4;
+  }
+
+  
     if (ascii >= 0x20 && ascii <=0x7f){
-        for (int a=0;a<5;a++){                      // Loop 5 times for a 5x5 font, once per row
+        for (int a=0;a<loop_rows;a++){                      // Loop 5 times for a 5x5 font, once per row
             unsigned long c ; 
             if (mode == 1)
             {
               // Read from the English font table
-              c = pgm_read_byte_near(font5x5 + ((ascii - 0x20) * 6) + a);     // Index into character table to get row data
+              if ((logicDisplay == FLD_TOP) || (logicDisplay == FLD_BOTTOM)){
+                c = pgm_read_byte_near(font5x5 + ((ascii - 0x20) * 6) + a);     // Index into character table to get row data
+              }
+              else if (logicDisplay == RLD)
+              {
+                c = pgm_read_byte_near(font5x4 + ((ascii - 0x20) * 5) + a);     // Index into character table to get row data
+              }
             }
             else if (mode == 2)
             {
               // Read from the Aurek Besh table
-              c = pgm_read_byte_near(aurabesh5x5 + ((ascii - 0x20) * 6) + a);     // Index into character table to get row data// To Do!!
+              if ((logicDisplay == FLD_TOP) || (logicDisplay == FLD_BOTTOM)){
+                c = pgm_read_byte_near(aurabesh5x5 + ((ascii - 0x20) * 6) + a);
+              }
+              else if (logicDisplay == RLD)
+              {
+                c = pgm_read_byte_near(aurabesh5x4 + ((ascii - 0x20) * 5) + a);     // Index into character table to get row data
+              }
             }
             unsigned long x = bufferLong[logicDisplay-1][a*2];     // Load current scroll buffer
             x = x | c;                              // OR the new character onto end of current
@@ -769,11 +824,24 @@ void loadBufferLong(int ascii, int logicDisplay, int mode){
 
         if (mode == 1)
         {
-           totalShiftsForChar[logicDisplay-1] = pgm_read_byte_near(font5x5 +((ascii - 0x20) * 6) + 5);     // Index into character table for kerning data
+          if ((logicDisplay == FLD_TOP) || (logicDisplay == FLD_BOTTOM)){
+            totalShiftsForChar[logicDisplay-1] = pgm_read_byte_near(font5x5 +((ascii - 0x20) * 6) + 5);     // Index into character table for kerning data
+          }
+          else if (logicDisplay == RLD)
+          {
+            totalShiftsForChar[logicDisplay-1] = pgm_read_byte_near(font5x4 +((ascii - 0x20) * 5) + 4);
+            //DEBUG_PRINT("Rear kearning: "); DEBUG_PRINT_LN(totalShiftsForChar[logicDisplay-1]);
+          }
         }
         else if (mode == 2)
         {
-           totalShiftsForChar[logicDisplay-1] = pgm_read_byte_near(aurabesh5x5 +((ascii - 0x20) * 6) + 5);     // Index into character table for kerning data
+          if ((logicDisplay == FLD_TOP) || (logicDisplay == FLD_BOTTOM)){
+            totalShiftsForChar[logicDisplay-1] = pgm_read_byte_near(aurabesh5x5 +((ascii - 0x20) * 6) + 5);     // Index into character table for kerning data
+          }
+          else if (logicDisplay == RLD)
+          {
+            totalShiftsForChar[logicDisplay-1] = pgm_read_byte_near(aurabesh5x4 +((ascii - 0x20) * 5) + 4);     // Index into character table for kerning data
+          }
         }
     }
 }
@@ -839,7 +907,7 @@ void loop() {
    
 }
 
-char scrolly[] PROGMEM ={"{}|~ "};
+char scrolly[] PROGMEM ={"0123456789 ABCDEFGHIJKLMNOPQRSTUVWXYZ  "};
 
 // The following takes the Pattern code, and executes the relevant function
 // This allows i2c and serial inputs to use the same function to start patterns
@@ -876,11 +944,19 @@ void runPattern(int logicDisplay, int pattern) {
       // Set display to Top front
       //scrollMessage(scrolly, logicDisplay, 2, 0x0000ff);
       setText(logicDisplay, scrolly);
-      scrollMessage(logicText[logicDisplay-1], logicDisplay, 2, 0x0000ff);
+      scrollMessage(logicText[logicDisplay-1], logicDisplay, 1, 0x0000ff);
       break;
     case 3:
       // Random blinkies with colorshifts
       randomBlinkies(logicDisplay, 2);
+      break;
+    case 4:
+      // FONT TESTER ....
+      // Stagger by one "pixel" each row ... 
+      SetRow(RLD, 0, B11100000, 0x00ff00); //B11100000, B10100000, B11000000, B10100000,
+      SetRow(RLD, 1,  B10100000, 0x00ff00);
+      SetRow(RLD, 2,   B11000000, 0x00ff00);
+      SetRow(RLD, 3,    B10100000, 0x00ff00);
       break;
     case 100:
       // Set display to Top front

@@ -1,15 +1,3 @@
-////////////////////////////////
-///////////////////////////////
-//   Scrolling Text Stuff   //
-/////////////////////////////
-////////////////////////////
-
-unsigned long scrollDelay[3] = {75,75,75};   // adjust scrolling speed
-unsigned long bufferLong [3][10] = {0};
-
-#define MAXSTRINGSIZE 64 // maximim letters in a logic display message
-char logicText[3][MAXSTRINGSIZE];
-
 // This is more challenging to see the characters, but way more efficient in terms of code space.
 const unsigned char font5x5 [] PROGMEM = {      //Numeric Font Matrix (Arranged as 5x font data + 1x kerning data)
     B00000000, B00000000, B00000000, B00000000, B00000000,  //Space (Char 0x20)
