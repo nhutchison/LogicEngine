@@ -907,7 +907,8 @@ void loop() {
    
 }
 
-char scrolly[] PROGMEM ={"0123456789 ABCDEFGHIJKLMNOPQRSTUVWXYZ  "};
+//char scrolly[] PROGMEM ={"0123456789 ABCDEFGHIJKLMNOPQRSTUVWXYZ  "};
+char scrolly[] PROGMEM ={"[\\]^_`{|}~  "};
 
 // The following takes the Pattern code, and executes the relevant function
 // This allows i2c and serial inputs to use the same function to start patterns
@@ -953,10 +954,10 @@ void runPattern(int logicDisplay, int pattern) {
     case 4:
       // FONT TESTER ....
       // Stagger by one "pixel" each row ... 
-      SetRow(RLD, 0, B11100000, 0x00ff00); //B11100000, B10100000, B11000000, B10100000,
-      SetRow(RLD, 1,  B10100000, 0x00ff00);
-      SetRow(RLD, 2,   B11000000, 0x00ff00);
-      SetRow(RLD, 3,    B10100000, 0x00ff00);
+      SetRow(RLD, 0, B01101000, 0x00ff00); //B01101000, B10110000, B00000000, B00000000,
+      SetRow(RLD, 1,  B10110000, 0x00ff00);
+      SetRow(RLD, 2,   B00000000, 0x00ff00);
+      SetRow(RLD, 3,    B00000000, 0x00ff00);
       break;
     case 100:
       // Set display to Top front
