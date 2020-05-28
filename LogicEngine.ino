@@ -437,8 +437,11 @@ void randomBlinkies(int logicDisplay, int mode){
 
   // If it is time to update the text
   if (checkDelay(logicDisplay)) {
-    /*
-    if (mode = 2) 
+
+    //TODO ... palette changes are a bit too fast for my liking
+    // Id like to slow this down somewhat.
+    // Some work needed here, but it could be cool ....
+    if (mode == 2) 
     {
       ChangePalettePeriodically(logicDisplay);
   
@@ -454,21 +457,24 @@ void randomBlinkies(int logicDisplay, int mode){
       // Because of the state system, although we update less frequently, we bash throught this too
       // quickly ... Update to be fully state driven!
       uint8_t maxChanges = 2;
-      if (logicDisplay < 3) {
+      if (logicDisplay == FLD_TOP) {
         nblendPaletteTowardPalette( frontCurrentPalette, frontTargetPalette, maxChanges);
       }
-      else if (logicDisplay == 3) {
+      else if (logicDisplay == FLD_BOTTOM) {
+        nblendPaletteTowardPalette( frontCurrentPalette, frontTargetPalette, maxChanges);
+      }
+      else if (logicDisplay == RLD) {
         nblendPaletteTowardPalette( rearCurrentPalette, rearTargetPalette, maxChanges);
       }
     }
-  */
+    
     static uint8_t startIndex = 0;
     startIndex = startIndex + 1; /* motion speed */
     startIndex %= 255;
     if (logicDisplay == 0) {
-      FillLEDsFromPaletteColors(FLD_TOP);
-      FillLEDsFromPaletteColors(FLD_BOTTOM);
-      FillLEDsFromPaletteColors(RLD);
+      //Should never happen ... remove this check!
+      DEBUG_PRINT_LN("Not Supported!");
+      return;
     }
     else if (logicDisplay == FLD_TOP) {
       FillLEDsFromPaletteColors(FLD_TOP);
@@ -479,11 +485,11 @@ void randomBlinkies(int logicDisplay, int mode){
     } else {
       DEBUG_PRINT_LN("Invalid Display address received");
     }
-  
-    updateDisplays();
 
     set_delay(logicDisplay, 1000 / UPDATES_PER_SECOND);
   }
+
+  updateDisplays();
 }
 
 
@@ -514,15 +520,16 @@ void FillLEDsFromPaletteColors(int logicDisplay)
         if (chanceChange < PER_CHANGE_CHANCE) {
           ledIndex = bothFrontLedMatrix[i][y];
           if (ledIndex != -1) {
-            front_leds[ledIndex] = ColorFromPalette( frontTargetPalette, frontColorIndex[ledIndex]/* + sin8(count*32)*/, brightness);
+            front_leds[ledIndex] = ColorFromPalette( frontTargetPalette, frontColorIndex[ledIndex]/* + sin8(count*32)*/, brightness, LINEARBLEND);
             // This is all about randomisation
             // We pick a random step size up to the MAX Step we allow.
             // All in the name of removing visible repeated patterning.
             tempStep = frontColorIndex[ledIndex] + random(FRONT_COLOR_STEP);
-            //tempStep %= 255;
+            tempStep %= 255;
             //colorIndex += FRONT_COLOR_STEP; //colorIndex %= 255;  // Update the index in the color palette
             frontColorIndex[ledIndex] = tempStep;
             count++;
+            //DEBUG_PRINT("Color Index: "); DEBUG_PRINT_LN(frontColorIndex[32]);
           }
         }
       }
@@ -534,7 +541,7 @@ void FillLEDsFromPaletteColors(int logicDisplay)
         if (chanceChange < PER_CHANGE_CHANCE) {
           ledIndex = rearLedMatrix[i][y];
           if (ledIndex != -1) {
-            rear_leds[ledIndex] = ColorFromPalette( rearTargetPalette, rearColorIndex[ledIndex]/* + sin8(count*32)*/, brightness);
+            rear_leds[ledIndex] = ColorFromPalette( rearTargetPalette, rearColorIndex[ledIndex]/* + sin8(count*32)*/, brightness, LINEARBLEND);
             tempStep = rearColorIndex[ledIndex] + REAR_COLOR_STEP;
             //tempStep %= 255;
             //colorIndex += FRONT_COLOR_STEP; //colorIndex %= 255;  // Update the index in the color palette
@@ -550,7 +557,7 @@ void FillLEDsFromPaletteColors(int logicDisplay)
 
 void ChangePalettePeriodically(int logicDisplay)
 {
-  uint8_t secondHand = (millis() / 1000) % 40;
+  uint8_t secondHand = (millis() / 1000) % 20;
   static uint8_t lastSecond = 99;
   
   if( lastSecond != secondHand) {
@@ -560,7 +567,7 @@ void ChangePalettePeriodically(int logicDisplay)
       } else {
         frontTargetPalette = rear_gp;
       }
-    if( secondHand == 20)  { 
+    if( secondHand == 10)  { 
       if (logicDisplay == 3) {
         rearTargetPalette = rear_gp; 
       } else {
@@ -615,11 +622,13 @@ void SetRow(int logicDisplay, uint8_t row, unsigned long RowState, int italic_sl
   } 
   else if (logicDisplay == RLD) 
   {
+    int rear_columns = 0;
     // Toggle the following lines to change the italic "lean" from Left to Right etc.  
     // Some characters need tweaking, but we can easily have a left and right leaning font :)
-    //for (int i = 0; i < REAR_COL+2; i++) {
-    //  int8_t ledIndex = rearScrollLedMatrixRight[i][row];
-    for (int i = 0; i < REAR_COL+1; i++) {
+    if (italic_slant == 0) rear_columns = REAR_COL+1;
+    else if (italic_slant == 1) rear_columns = REAR_COL+2;
+
+    for (int i = 0; i < rear_columns; i++) {
       if (italic_slant == 0) {
         ledIndex = rearScrollLedMatrixLeft[i][row];
       }
@@ -672,6 +681,10 @@ void scrollMessage(char messageString[], int logicDisplay, int font, int italic_
     // Clear temp buffer to save the end of the last message being re-displayed.
     for (int i=0; i<10; i++) bufferLong[logicDisplay-1][i] = 0;
 
+    // Rear buffer has it's own display buffer, so we need to clear that out too!
+    for (int i=0; i<REAR_ROW; i++) rearTextBuffer[i] = 0;
+    
+
     // Clear out the counters
     currentCharShiftsRemaining[logicDisplay-1] = 0;
     totalShiftsForChar[logicDisplay-1] = 0;
@@ -685,7 +698,6 @@ void scrollMessage(char messageString[], int logicDisplay, int font, int italic_
 
   // If it is time to update the text
   if (checkDelay(logicDisplay)) {
-    //DEBUG_PRINT("Timeout Expired on Logic ");DEBUG_PRINT_LN(logicDisplay);
     // Check if we need to load the new character
     if (currentCharShiftsRemaining[logicDisplay-1] == 0) {
       // load the next character...
@@ -697,7 +709,19 @@ void scrollMessage(char messageString[], int logicDisplay, int font, int italic_
           scrollCount[logicDisplay-1]++;
           // Set the width of this character.
           currentCharShiftsRemaining[logicDisplay-1] = totalShiftsForChar[logicDisplay-1];
-          //DEBUG_PRINT("Char Width: "); DEBUG_PRINT_LN(currentCharShiftsRemaining[logicDisplay]);
+      }
+      // This is the end of the message.  Add the display width to the scroll shifts remaining
+      // so that the message scrolls off the screen nicely without needing extra spaces.
+      if ((scrollCount[logicDisplay-1] == strlen((const char*)messageString)) && 
+          (currentCharShiftsRemaining[logicDisplay-1] == totalShiftsForChar[logicDisplay-1])){
+        //DEBUG_PRINT_LN("Last character, adjusting shifts");
+        if ((logicDisplay == FLD_TOP) || (logicDisplay == FLD_BOTTOM)){
+          totalShiftsForChar[logicDisplay-1] += FRONT_COL;
+          currentCharShiftsRemaining[logicDisplay-1] += FRONT_COL;
+        } else if (logicDisplay == RLD) {
+          totalShiftsForChar[logicDisplay-1] += REAR_COL;
+          currentCharShiftsRemaining[logicDisplay-1] += REAR_COL;
+        }
       }
     } else {
       // Rotate the current character until we need to load a new character
@@ -722,18 +746,6 @@ void scrollMessage(char messageString[], int logicDisplay, int font, int italic_
   //DEBUG_PRINT("Char "); DEBUG_PRINT(scrollCount[logicDisplay-1]); DEBUG_PRINT(" of "); DEBUG_PRINT_LN(strlen((const char*)messageString));
   //DEBUG_PRINT("Char Width: "); DEBUG_PRINT_LN(currentCharShiftsRemaining[logicDisplay-1]);
 
-  /*
-  if (logicDisplay == 1){
-    DEBUG_PRINT("Shifts ");
-    DEBUG_PRINT(currentCharShiftsRemaining[logicDisplay-1]);
-    DEBUG_PRINT(" Max ");
-    DEBUG_PRINT(strlen((const char*)messageString));
-    DEBUG_PRINT(" Count ");
-    DEBUG_PRINT_LN(scrollCount[logicDisplay-1]);
-  }
-  */
-
-  // Might need updating for multi display message stuff ....
   if ((currentCharShiftsRemaining[logicDisplay-1] == 0) && (strlen((const char*)messageString) == scrollCount[logicDisplay-1])) {
     DEBUG_PRINT("Scrolling Done "); DEBUG_PRINT_LN(logicDisplay);
     lastEventCode[logicDisplay-1] = defaultPattern;
@@ -756,18 +768,25 @@ void shiftBuffer(int logicDisplay){
         bufferLong[logicDisplay-1][a*2+1] = x;                 // Store new high buffer
     }
   } else if (logicDisplay == RLD) {
-      
+    int offset;  // Calculate the bit offset in the current character.  
     for (int a=0;a<4;a++){                      // Loop 5 times for a 5x5 font, once per row.
 
         unsigned long x = rearTextBuffer[a];        // Get the row data
-        DEBUG_PRINT("Row "); DEBUG_PRINT_LN(a); DEBUG_PRINT(" data: "); DEBUG_PRINT_LN(x);
+        //DEBUG_PRINT("Row "); DEBUG_PRINT(a); DEBUG_PRINT(" data: "); DEBUG_PRINT(x); DEBUG_PRINT(" shifts: "); DEBUG_PRINT_LN(currentCharShiftsRemaining[logicDisplay-1]);
+        //DEBUG_PRINT(" Total - shifts: "); DEBUG_PRINT_LN(totalShiftsForChar[logicDisplay-1] -  currentCharShiftsRemaining[logicDisplay-1]);
+        // Offset is from the high bit in the 8 bit char.
+        offset = 8 - (totalShiftsForChar[logicDisplay-1] -  currentCharShiftsRemaining[logicDisplay-1]);
         x = x <<1;                    // Shift it up by one
-        DEBUG_PRINT("BufLong: "); DEBUG_PRINT_LN(bufferLong[logicDisplay-1][a]);
-        byte b = bitRead(bufferLong[logicDisplay-1][a],8 - currentCharShiftsRemaining[logicDisplay-1]);
-        DEBUG_PRINT("Bit to add: "); DEBUG_PRINT_LN(b);
+        //DEBUG_PRINT("BufLong: "); DEBUG_PRINT_LN(bufferLong[logicDisplay-1][a]);
+        byte b = bitRead(bufferLong[logicDisplay-1][a],offset);
+
+        //DEBUG_PRINT("Bit try1: "); DEBUG_PRINT_LN(bitRead(bufferLong[logicDisplay-1][a],8 - currentCharShiftsRemaining[logicDisplay-1]));
+        //DEBUG_PRINT("Bit try2: "); DEBUG_PRINT_LN(bitRead(bufferLong[logicDisplay-1][a],currentCharShiftsRemaining[logicDisplay-1]));
+        
+        //DEBUG_PRINT("Bit to add: "); DEBUG_PRINT_LN(b);
         bitWrite(x,0,b);
         rearTextBuffer[a] = x;
-        DEBUG_PRINT("Row Shifted : "); DEBUG_PRINT_LN(x);
+        //DEBUG_PRINT("Row Shifted : "); DEBUG_PRINT_LN(x);
     }
   }
 
@@ -846,7 +865,7 @@ void loadBufferLong(int ascii, int logicDisplay, int font, int italic_slant){
                   c = pgm_read_byte_near(font5x4r + ((ascii - 0x20) * 5) + a);     // Index into character table to get row data
                 }
                 bufferLong[logicDisplay-1][a] = c; // Just store the character.  Current state and shifts are in the large rear buffer.
-                DEBUG_PRINT("BufLong Load: "); DEBUG_PRINT_LN(bufferLong[logicDisplay-1][a]);
+                //DEBUG_PRINT("BufLong Load: "); DEBUG_PRINT_LN(bufferLong[logicDisplay-1][a]);
               }
             }
             else if (font == 2)
@@ -872,7 +891,7 @@ void loadBufferLong(int ascii, int logicDisplay, int font, int italic_slant){
                 //x = x | c;                              // OR the new character onto end of current
                 //bufferLong[logicDisplay-1][a*2] = x;                   // Store in buffer
                 bufferLong[logicDisplay-1][a] = c; // Just store the character.  Current state and shifts are in the large rear buffer.
-                DEBUG_PRINT("BufLong Load: "); DEBUG_PRINT_LN(bufferLong[logicDisplay-1][a]);
+                //DEBUG_PRINT("BufLong Load: "); DEBUG_PRINT_LN(bufferLong[logicDisplay-1][a]);
                 //DEBUG_PRINT("BufferLong: "); DEBUG_PRINT_LN(bufferLong[logicDisplay][a*2]);
                 
               }
@@ -976,7 +995,7 @@ void loop() {
 }
 
 //char scrolly[] PROGMEM ={"0123456789 ABCDEFGHIJKLMNOPQRSTUVWXYZ  "};
-char scrolly[] PROGMEM ={"ABCDEFGHIJKLMNOPQRSTUVWXYZ"};
+char scrolly[] PROGMEM ={"{|}"};
 
 // The following takes the Pattern code, and executes the relevant function
 // This allows i2c and serial inputs to use the same function to start patterns
@@ -1008,7 +1027,7 @@ void runPattern(int logicDisplay, int pattern) {
       allOFF(logicDisplay, true);
       break;
     case 1:
-      randomBlinkies(logicDisplay, 1);
+      randomBlinkies(logicDisplay, 0);
       break;
     case 2:
       // Set display to Top front
@@ -1033,7 +1052,10 @@ void runPattern(int logicDisplay, int pattern) {
       //SetRow(RLD, 1,  B10110000, 0, 0x00ff00);
       //SetRow(RLD, 2,   B00000000, 0, 0x00ff00);
       //SetRow(RLD, 3,    B00000000, 0, 0x00ff00);
-      SetRow(RLD, 0, 0x1555555, 0, 0x00ff00);
+      SetRow(RLD, 0,    B11010000, 1, 0x00ff00); //B01101000, B10110000, B00000000, B00000000
+      SetRow(RLD, 1,   B10110000, 1, 0x00ff00);
+      SetRow(RLD, 2,  B00000000, 1, 0x00ff00);
+      SetRow(RLD, 3, B00000000, 1, 0x00ff00);
       break;
     case 100:
       // Set display to Top front
@@ -1361,7 +1383,6 @@ void doTcommand(int address, int argument, int timing)
     DEBUG_PRINT_LN("Pattern request for All");
     for (int i=1; i<4; i++) {
       runPattern(i, argument);
-      delay(1);
     }
   }
   else

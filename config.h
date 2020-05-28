@@ -121,7 +121,7 @@ CRGBPalette16 frontCurrentPalette( front_gp);
 CRGBPalette16 rearCurrentPalette( rear_gp);
 CRGBPalette16 rearTargetPalette( rear_gp);
 
-#define UPDATES_PER_SECOND 140 // The bigger this number the faster the blinkies blink.  Value between 1 and 200
+#define UPDATES_PER_SECOND 50 // The bigger this number the faster the blinkies blink.  Value between 1 and 200
 #define FRONT_COLOR_STEP 6  // Playing with this really changes how the blinkies look, smaller is "smoother"
 #define REAR_COLOR_STEP 3  // Playing with this really changes how the blinkies look, smaller is "smoother"
 
@@ -261,7 +261,7 @@ uint8_t rearScrollLedMatrixLeft[REAR_COL+1][REAR_ROW] = {
 /////////////////////////////
 ////////////////////////////
 
-unsigned long scrollDelay[3] = {75,75,75};   // adjust scrolling speed
+unsigned long scrollDelay[3] = {200,200,200};   // adjust scrolling speed
 unsigned long bufferLong [3][10] = {0,0,0};
 
 // On the front Logics, we can use the standarc char buffer as it's 8 wide, the rear however
