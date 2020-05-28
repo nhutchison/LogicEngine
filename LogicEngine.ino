@@ -89,7 +89,6 @@ uint8_t rear_cnt = 0;
 // Scrolling text stuff
 ///
 uint8_t scrollCount[3] = {0,0,0};
-uint8_t maxScrollCount[3] = {0,0,0};
 uint8_t currentCharShiftsRemaining[3] = {0,0,0};
 uint8_t totalShiftsForChar[3] = {0,0,0};
 //bool scrollDisplayFirstTime[3] = {false};
@@ -577,13 +576,15 @@ void ChangePalettePeriodically(int logicDisplay)
 //
 ///
 
-void SetRow(int logicDisplay, uint8_t row, unsigned char RowState, CRGB color){
+void SetRow(int logicDisplay, uint8_t row, unsigned long RowState, int italic_slant, CRGB color){
 
+  int8_t ledIndex;
+  
   if ((logicDisplay == FLD_TOP) || (logicDisplay == FLD_BOTTOM)){
     // If row is less than 5, it's the top logic, else it's the bottom logic
     if (row < FRONT_ROW) {
       for (int i = 0; i < FRONT_COL; i++) {
-        int8_t ledIndex = frontTopLedMatrix[i][row];
+        ledIndex = frontTopLedMatrix[i][row];
         if (ledIndex != -1) {
           if ((RowState >> ((FRONT_COL - 1) - i)) & 1) {
             front_leds[ledIndex] = color;
@@ -598,8 +599,8 @@ void SetRow(int logicDisplay, uint8_t row, unsigned char RowState, CRGB color){
     // it's the bottom logic
     else
     {
-      for (int i = 0; i < FRONT_COL; i++) {
-        int8_t ledIndex = frontBottomLedMatrix[i][row - FRONT_ROW];
+      for (int i = 0; i < FRONT_COL; i++) {        
+        ledIndex = frontBottomLedMatrix[i][row - FRONT_ROW];
         if (ledIndex != -1) {
           if ((RowState >> ((FRONT_COL - 1) - i)) & 1) {
             front_leds[ledIndex] = color;
@@ -619,7 +620,12 @@ void SetRow(int logicDisplay, uint8_t row, unsigned char RowState, CRGB color){
     //for (int i = 0; i < REAR_COL+2; i++) {
     //  int8_t ledIndex = rearScrollLedMatrixRight[i][row];
     for (int i = 0; i < REAR_COL+1; i++) {
-      int8_t ledIndex = rearScrollLedMatrixLeft[i][row];
+      if (italic_slant == 0) {
+        ledIndex = rearScrollLedMatrixLeft[i][row];
+      }
+      else if (italic_slant == 1) {
+        ledIndex = rearScrollLedMatrixRight[i][row];
+      }
       if (ledIndex != -1) {
         if ((RowState >> ((REAR_COL - 1) - i)) & 1) {
           //DEBUG_PRINT(ledIndex);
@@ -650,7 +656,7 @@ void setText(int logicDisplay, const char* message)
 //                        1 - Front Top, 
 //                        2 - Front Bottom,
 //                        3 - Rear
-void scrollMessage(char messageString[], int logicDisplay, int mode, CRGB color) {
+void scrollMessage(char messageString[], int logicDisplay, int font, int italic_slant, CRGB color) {
 
   if (logicDisplay == 0)
   {
@@ -662,19 +668,16 @@ void scrollMessage(char messageString[], int logicDisplay, int mode, CRGB color)
   if (firstTime[logicDisplay-1]) {
     firstTime[logicDisplay-1] = false;
     patternRunning[logicDisplay-1] = true;
-    
-    // Count the number of characters we've loaded.
-    scrollCount[logicDisplay-1] = 0;
-    maxScrollCount[logicDisplay-1] = strlen((const char*)messageString);
-
-    // Count the number of times we've moved the current character
-    currentCharShiftsRemaining[logicDisplay-1] = 0;
-    totalShiftsForChar[logicDisplay-1] = 0;
 
     // Clear temp buffer to save the end of the last message being re-displayed.
     for (int i=0; i<10; i++) bufferLong[logicDisplay-1][i] = 0;
+
+    // Clear out the counters
+    currentCharShiftsRemaining[logicDisplay-1] = 0;
+    totalShiftsForChar[logicDisplay-1] = 0;
+    scrollCount[logicDisplay-1] = 0;
     
-    //DEBUG_PRINT("String Length "); DEBUG_PRINT_LN(maxScrollCount[logicDisplay]);
+    DEBUG_PRINT("Logic  ");DEBUG_PRINT(logicDisplay);DEBUG_PRINT(": String Length "); DEBUG_PRINT_LN(strlen((const char*)messageString));
   }
 
   updateLed = 0;
@@ -682,7 +685,7 @@ void scrollMessage(char messageString[], int logicDisplay, int mode, CRGB color)
 
   // If it is time to update the text
   if (checkDelay(logicDisplay)) {
-    //DEBUG_PRINT_LN("Timeout Expired");
+    //DEBUG_PRINT("Timeout Expired on Logic ");DEBUG_PRINT_LN(logicDisplay);
     // Check if we need to load the new character
     if (currentCharShiftsRemaining[logicDisplay-1] == 0) {
       // load the next character...
@@ -690,7 +693,7 @@ void scrollMessage(char messageString[], int logicDisplay, int mode, CRGB color)
       myChar =  pgm_read_byte_near(messageString + scrollCount[logicDisplay-1]); 
       // If its a valid character, then load it.
       if (myChar != 0){
-          loadBufferLong(myChar, logicDisplay, mode);
+          loadBufferLong(myChar, logicDisplay, font, italic_slant);
           scrollCount[logicDisplay-1]++;
           // Set the width of this character.
           currentCharShiftsRemaining[logicDisplay-1] = totalShiftsForChar[logicDisplay-1];
@@ -704,7 +707,7 @@ void scrollMessage(char messageString[], int logicDisplay, int mode, CRGB color)
         // Move the pixels
         shiftBuffer(logicDisplay);
         currentCharShiftsRemaining[logicDisplay-1]--;
-        printScrollBuffer(logicDisplay, color);
+        printScrollBuffer(logicDisplay, italic_slant, color);
         updateLed = 1;
       }
       set_delay(logicDisplay, scrollDelay[logicDisplay-1]);
@@ -716,12 +719,23 @@ void scrollMessage(char messageString[], int logicDisplay, int mode, CRGB color)
     updateDisplays();
   }
 
-  //DEBUG_PRINT("Char "); DEBUG_PRINT(scrollCount[logicDisplay]); DEBUG_PRINT(" of "); DEBUG_PRINT_LN(maxScrollCount[logicDisplay]);
-  //DEBUG_PRINT("Char Width: "); DEBUG_PRINT_LN(currentCharShiftsRemaining[logicDisplay]);
+  //DEBUG_PRINT("Char "); DEBUG_PRINT(scrollCount[logicDisplay-1]); DEBUG_PRINT(" of "); DEBUG_PRINT_LN(strlen((const char*)messageString));
+  //DEBUG_PRINT("Char Width: "); DEBUG_PRINT_LN(currentCharShiftsRemaining[logicDisplay-1]);
+
+  /*
+  if (logicDisplay == 1){
+    DEBUG_PRINT("Shifts ");
+    DEBUG_PRINT(currentCharShiftsRemaining[logicDisplay-1]);
+    DEBUG_PRINT(" Max ");
+    DEBUG_PRINT(strlen((const char*)messageString));
+    DEBUG_PRINT(" Count ");
+    DEBUG_PRINT_LN(scrollCount[logicDisplay-1]);
+  }
+  */
 
   // Might need updating for multi display message stuff ....
-  if ((currentCharShiftsRemaining[logicDisplay-1] == 0) && (maxScrollCount[logicDisplay-1] == scrollCount[logicDisplay-1])) {
-    DEBUG_PRINT_LN("Scrolling Done ");
+  if ((currentCharShiftsRemaining[logicDisplay-1] == 0) && (strlen((const char*)messageString) == scrollCount[logicDisplay-1])) {
+    DEBUG_PRINT("Scrolling Done "); DEBUG_PRINT_LN(logicDisplay);
     lastEventCode[logicDisplay-1] = defaultPattern;
     patternRunning[logicDisplay-1] = false;
   }
@@ -730,14 +744,8 @@ void scrollMessage(char messageString[], int logicDisplay, int mode, CRGB color)
 // Rotate the buffer
 void shiftBuffer(int logicDisplay){
 
-  int loop_rows = 5;
   if ((logicDisplay == FLD_TOP) || (logicDisplay == FLD_BOTTOM)){
-    loop_rows = 5;
-  } else if (logicDisplay == RLD) {
-    loop_rows = 4;
-  }
-  
-    for (int a=0;a<loop_rows;a++){                      // Loop 5 times for a 5x5 font, once per row.
+    for (int a=0;a<5;a++){                      // Loop 5 times for a 5x5 font, once per row.
         unsigned long x = bufferLong[logicDisplay-1][a*2];     // Get low buffer entry
         byte b = bitRead(x,31);                 // Copy high order bit that gets lost in rotation
         x = x<<1;                               // Rotate left one bit
@@ -747,10 +755,26 @@ void shiftBuffer(int logicDisplay){
         bitWrite(x,0,b);                        // Store saved bit
         bufferLong[logicDisplay-1][a*2+1] = x;                 // Store new high buffer
     }
+  } else if (logicDisplay == RLD) {
+      
+    for (int a=0;a<4;a++){                      // Loop 5 times for a 5x5 font, once per row.
+
+        unsigned long x = rearTextBuffer[a];        // Get the row data
+        DEBUG_PRINT("Row "); DEBUG_PRINT_LN(a); DEBUG_PRINT(" data: "); DEBUG_PRINT_LN(x);
+        x = x <<1;                    // Shift it up by one
+        DEBUG_PRINT("BufLong: "); DEBUG_PRINT_LN(bufferLong[logicDisplay-1][a]);
+        byte b = bitRead(bufferLong[logicDisplay-1][a],8 - currentCharShiftsRemaining[logicDisplay-1]);
+        DEBUG_PRINT("Bit to add: "); DEBUG_PRINT_LN(b);
+        bitWrite(x,0,b);
+        rearTextBuffer[a] = x;
+        DEBUG_PRINT("Row Shifted : "); DEBUG_PRINT_LN(x);
+    }
+  }
+
 }  
 
 // Display Buffer on LED matrix
-void printScrollBuffer(int logicDisplay, CRGB color){
+void printScrollBuffer(int logicDisplay, int italic_slant, CRGB color){
   int row;
   int loop_rows = 5;
   if ((logicDisplay == FLD_TOP) || (logicDisplay == FLD_BOTTOM)){
@@ -769,19 +793,26 @@ void printScrollBuffer(int logicDisplay, CRGB color){
     else if (logicDisplay == FLD_BOTTOM) {
       row = a+5;
     }
-    SetRow(logicDisplay, row, y, color);
-    x = bufferLong[logicDisplay-1][a*2];                   // Get low buffer entry
-    y = (x>>24);                            // Mask off second character
-    SetRow(logicDisplay, row, y, color);
-    y = (x>>16);                            // Mask off third character
-    SetRow(logicDisplay, row, y, color);
-    y = (x>>8);                             // Mask off forth character
-    SetRow(logicDisplay, row, y, color);
+
+    if ((logicDisplay == FLD_TOP) || (logicDisplay == FLD_BOTTOM))
+    {
+      SetRow(logicDisplay, row, y, italic_slant, color);
+      x = bufferLong[logicDisplay-1][a*2];                   // Get low buffer entry
+      y = (x>>24);                            // Mask off second character
+      SetRow(logicDisplay, row, y, italic_slant, color);
+      y = (x>>16);                            // Mask off third character
+      SetRow(logicDisplay, row, y, italic_slant, color);
+      y = (x>>8);                             // Mask off forth character
+      SetRow(logicDisplay, row, y, italic_slant, color);
+    }
+    else if (logicDisplay == RLD) {
+      SetRow(logicDisplay, row, rearTextBuffer[row], italic_slant, color);
+    }
   }
 }
 
 // Load character into scroll buffer
-void loadBufferLong(int ascii, int logicDisplay, int mode){
+void loadBufferLong(int ascii, int logicDisplay, int font, int italic_slant){
 
   int loop_rows = 5;
   if ((logicDisplay == FLD_TOP) || (logicDisplay == 2)){
@@ -790,57 +821,94 @@ void loadBufferLong(int ascii, int logicDisplay, int mode){
     loop_rows = 4;
   }
 
+    unsigned long c; 
+    unsigned long x;
   
     if (ascii >= 0x20 && ascii <=0x7f){
         for (int a=0;a<loop_rows;a++){                      // Loop 5 times for a 5x5 font, once per row
-            unsigned long c ; 
-            if (mode == 1)
+            if (font == 1)
             {
               // Read from the English font table
               if ((logicDisplay == FLD_TOP) || (logicDisplay == FLD_BOTTOM)){
                 c = pgm_read_byte_near(font5x5 + ((ascii - 0x20) * 6) + a);     // Index into character table to get row data
+
+                x = bufferLong[logicDisplay-1][a*2];     // Load current scroll buffer
+                x = x | c;                              // OR the new character onto end of current
+                bufferLong[logicDisplay-1][a*2] = x;                   // Store in buffer
+                //DEBUG_PRINT("BufferLong: "); DEBUG_PRINT_LN(bufferLong[logicDisplay][a*2]);
               }
               else if (logicDisplay == RLD)
               {
-                c = pgm_read_byte_near(font5x4 + ((ascii - 0x20) * 5) + a);     // Index into character table to get row data
+                if (italic_slant == 0) {
+                  c = pgm_read_byte_near(font5x4l + ((ascii - 0x20) * 5) + a);     // Index into character table to get row data
+                }
+                else if  (italic_slant == 1) {
+                  c = pgm_read_byte_near(font5x4r + ((ascii - 0x20) * 5) + a);     // Index into character table to get row data
+                }
+                bufferLong[logicDisplay-1][a] = c; // Just store the character.  Current state and shifts are in the large rear buffer.
+                DEBUG_PRINT("BufLong Load: "); DEBUG_PRINT_LN(bufferLong[logicDisplay-1][a]);
               }
             }
-            else if (mode == 2)
+            else if (font == 2)
             {
               // Read from the Aurek Besh table
               if ((logicDisplay == FLD_TOP) || (logicDisplay == FLD_BOTTOM)){
                 c = pgm_read_byte_near(aurabesh5x5 + ((ascii - 0x20) * 6) + a);
+
+                x = bufferLong[logicDisplay-1][a*2];     // Load current scroll buffer
+                x = x | c;                              // OR the new character onto end of current
+                bufferLong[logicDisplay-1][a*2] = x;                   // Store in buffer
+                //DEBUG_PRINT("BufferLong: "); DEBUG_PRINT_LN(bufferLong[logicDisplay][a*2]);
               }
               else if (logicDisplay == RLD)
               {
-                c = pgm_read_byte_near(aurabesh5x4 + ((ascii - 0x20) * 5) + a);     // Index into character table to get row data
+                if (italic_slant == 0) {
+                  c = pgm_read_byte_near(aurabesh5x4l + ((ascii - 0x20) * 5) + a);     // Index into character table to get row data
+                }
+                else if  (italic_slant == 1) {
+                  c = pgm_read_byte_near(aurabesh5x4r + ((ascii - 0x20) * 5) + a);     // Index into character table to get row data
+                }
+                //x = bufferLong[logicDisplay-1][a*2];     // Load current scroll buffer
+                //x = x | c;                              // OR the new character onto end of current
+                //bufferLong[logicDisplay-1][a*2] = x;                   // Store in buffer
+                bufferLong[logicDisplay-1][a] = c; // Just store the character.  Current state and shifts are in the large rear buffer.
+                DEBUG_PRINT("BufLong Load: "); DEBUG_PRINT_LN(bufferLong[logicDisplay-1][a]);
+                //DEBUG_PRINT("BufferLong: "); DEBUG_PRINT_LN(bufferLong[logicDisplay][a*2]);
+                
               }
             }
-            unsigned long x = bufferLong[logicDisplay-1][a*2];     // Load current scroll buffer
-            x = x | c;                              // OR the new character onto end of current
-            bufferLong[logicDisplay-1][a*2] = x;                   // Store in buffer
-            //DEBUG_PRINT("BufferLong: "); DEBUG_PRINT_LN(bufferLong[logicDisplay][a*2]);
+
         }
 
-        if (mode == 1)
+        if (font == 1)
         {
           if ((logicDisplay == FLD_TOP) || (logicDisplay == FLD_BOTTOM)){
             totalShiftsForChar[logicDisplay-1] = pgm_read_byte_near(font5x5 +((ascii - 0x20) * 6) + 5);     // Index into character table for kerning data
           }
           else if (logicDisplay == RLD)
           {
-            totalShiftsForChar[logicDisplay-1] = pgm_read_byte_near(font5x4 +((ascii - 0x20) * 5) + 4);
+            if (italic_slant == 0) {
+              totalShiftsForChar[logicDisplay-1] = pgm_read_byte_near(font5x4l +((ascii - 0x20) * 5) + 4);
+            }
+            else if (italic_slant == 1) {
+              totalShiftsForChar[logicDisplay-1] = pgm_read_byte_near(font5x4r +((ascii - 0x20) * 5) + 4);
+            }
             //DEBUG_PRINT("Rear kearning: "); DEBUG_PRINT_LN(totalShiftsForChar[logicDisplay-1]);
           }
         }
-        else if (mode == 2)
+        else if (font == 2)
         {
           if ((logicDisplay == FLD_TOP) || (logicDisplay == FLD_BOTTOM)){
             totalShiftsForChar[logicDisplay-1] = pgm_read_byte_near(aurabesh5x5 +((ascii - 0x20) * 6) + 5);     // Index into character table for kerning data
           }
           else if (logicDisplay == RLD)
           {
-            totalShiftsForChar[logicDisplay-1] = pgm_read_byte_near(aurabesh5x4 +((ascii - 0x20) * 5) + 4);     // Index into character table for kerning data
+            if (italic_slant == 0) {
+              totalShiftsForChar[logicDisplay-1] = pgm_read_byte_near(aurabesh5x4l +((ascii - 0x20) * 5) + 4);     // Index into character table for kerning data
+            }
+            else if (italic_slant == 1) {
+              totalShiftsForChar[logicDisplay-1] = pgm_read_byte_near(aurabesh5x4r +((ascii - 0x20) * 5) + 4);     // Index into character table for kerning data
+            }
           }
         }
     }
@@ -908,7 +976,7 @@ void loop() {
 }
 
 //char scrolly[] PROGMEM ={"0123456789 ABCDEFGHIJKLMNOPQRSTUVWXYZ  "};
-char scrolly[] PROGMEM ={"[\\]^_`{|}~  "};
+char scrolly[] PROGMEM ={"ABCDEFGHIJKLMNOPQRSTUVWXYZ"};
 
 // The following takes the Pattern code, and executes the relevant function
 // This allows i2c and serial inputs to use the same function to start patterns
@@ -928,6 +996,7 @@ void runPattern(int logicDisplay, int pattern) {
   {
     lastEventCode[logicDisplay-1] = pattern;
     firstTime[logicDisplay-1] = true;
+    DEBUG_PRINT("Start Pattern "); DEBUG_PRINT(pattern); DEBUG_PRINT(" on "); DEBUG_PRINT_LN(logicDisplay); 
   }
   else
   {
@@ -944,24 +1013,31 @@ void runPattern(int logicDisplay, int pattern) {
     case 2:
       // Set display to Top front
       //scrollMessage(scrolly, logicDisplay, 2, 0x0000ff);
-      setText(logicDisplay, scrolly);
-      scrollMessage(logicText[logicDisplay-1], logicDisplay, 1, 0x0000ff);
+      if (firstTime[logicDisplay-1] == true) setText(logicDisplay, scrolly);
+      scrollMessage(logicText[logicDisplay-1], logicDisplay, 1, 0, 0x0000ff);
       break;
     case 3:
+      // Set display to Top front
+      //scrollMessage(scrolly, logicDisplay, 2, 0x0000ff);
+      setText(logicDisplay, scrolly);
+      scrollMessage(logicText[logicDisplay-1], logicDisplay, 1, 1, 0x0000ff);
+      break;
+    case 4:
       // Random blinkies with colorshifts
       randomBlinkies(logicDisplay, 2);
       break;
-    case 4:
+    case 5:
       // FONT TESTER ....
       // Stagger by one "pixel" each row ... 
-      SetRow(RLD, 0, B01101000, 0x00ff00); //B01101000, B10110000, B00000000, B00000000,
-      SetRow(RLD, 1,  B10110000, 0x00ff00);
-      SetRow(RLD, 2,   B00000000, 0x00ff00);
-      SetRow(RLD, 3,    B00000000, 0x00ff00);
+      //SetRow(RLD, 0, B01101000, 0, 0x00ff00); //B01101000, B10110000, B00000000, B00000000,
+      //SetRow(RLD, 1,  B10110000, 0, 0x00ff00);
+      //SetRow(RLD, 2,   B00000000, 0, 0x00ff00);
+      //SetRow(RLD, 3,    B00000000, 0, 0x00ff00);
+      SetRow(RLD, 0, 0x1555555, 0, 0x00ff00);
       break;
     case 100:
       // Set display to Top front
-      scrollMessage(logicText[logicDisplay-1], logicDisplay, 1, 0x0000ff);
+      scrollMessage(logicText[logicDisplay-1], logicDisplay, 1, 0, 0x0000ff);
       break;      
     default:
       DEBUG_PRINT("Pattern "); DEBUG_PRINT(pattern); DEBUG_PRINT_LN(" not valid.  Ignoring");
@@ -1228,7 +1304,7 @@ void doMcommand(int address, char* message)
   //serialPort->print(message);
 
   //TODO : Text on all
-  //if(address==0) {setText(0, message); setText(1, message); setText(2, message);}
+  //if(address==0) {setText(FLD_TOP, message); setText(FLD_BOTTOM, message); setText(RLD, message);}
   if(address==1) {setText(FLD_TOP, message);}
   if(address==2) {setText(FLD_BOTTOM, message);}
   if(address==3) {setText(RLD, message);}  
@@ -1285,6 +1361,7 @@ void doTcommand(int address, int argument, int timing)
     DEBUG_PRINT_LN("Pattern request for All");
     for (int i=1; i<4; i++) {
       runPattern(i, argument);
+      delay(1);
     }
   }
   else

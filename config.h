@@ -53,20 +53,6 @@ bool alwaysOn = false;
 
 uint8_t defaultPattern = 1; //Mode 1 is Random Blinkies
 
-
-////////////////////////////////
-///////////////////////////////
-//   Scrolling Text Stuff   //
-/////////////////////////////
-////////////////////////////
-
-unsigned long scrollDelay[3] = {75,75,300};   // adjust scrolling speed
-unsigned long bufferLong [3][10] = {0};
-
-#define MAXSTRINGSIZE 64 // maximim letters in a logic display message
-char logicText[3][MAXSTRINGSIZE];
-
-
 ///////////////////////////////////////////////////
 ////////////// Define Display addresses ///////////////
 /////////////////////////////////////////////////
@@ -268,6 +254,23 @@ uint8_t rearScrollLedMatrixLeft[REAR_COL+1][REAR_ROW] = {
   { 23, 24, -1, -1,},
 };
 
+
+////////////////////////////////
+///////////////////////////////
+//   Scrolling Text Stuff   //
+/////////////////////////////
+////////////////////////////
+
+unsigned long scrollDelay[3] = {75,75,75};   // adjust scrolling speed
+unsigned long bufferLong [3][10] = {0,0,0};
+
+// On the front Logics, we can use the standarc char buffer as it's 8 wide, the rear however
+// is 24 - 26 wide (depending on the slope of text) so we need to have another "store" for
+// the pixles that is wide enough for the full display.
+unsigned long rearTextBuffer[REAR_ROW]; // Use to Store the text for Rear display
+
+#define MAXSTRINGSIZE 64 // maximim letters in a logic display message
+char logicText[3][MAXSTRINGSIZE+1];
 
 //Setup Debug stuff for Real Arduino Pro Micros
 #ifdef DEBUG
