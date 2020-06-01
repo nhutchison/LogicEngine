@@ -69,7 +69,8 @@ unsigned long interval = 5;  // Limits us to 200 updates per second.
 bool firstTime[3];
 bool patternRunning[3] = {false, false, false};
 int lastEventCode[3] = {defaultPattern, defaultPattern, defaultPattern};
-uint8_t globalPatternLoops;
+uint8_t globalPatternLoops[3];
+uint8_t ledPatternState[3];
 int updateLed = 0;
 
 // Timing values received from command are stored here.
@@ -174,6 +175,20 @@ void setup() {
   //  lastEventCode[i] = defaultPattern;
   //}
 
+  /*
+  // Scroll some text on startup ... because we can!
+  char fld_top_text[] PROGMEM ={"R2-D2"};
+  char fld_bot_text[] PROGMEM ={"Astromech"};
+  char rld_text[] PROGMEM ={"STARWARS"};
+
+  setText(FLD_TOP, fld_top_text);
+  setText(FLD_BOTTOM, fld_bot_text);
+  setText(RLD, rld_text);
+
+  scrollMessage(logicText[0], FLD_TOP, 0, 0, 0x0000ff);
+  scrollMessage(logicText[1], FLD_BOTTOM, 0, 0, 0x0000ff);
+  scrollMessage(logicText[2], RLD, 0, 1, 0x00ff00);
+  */
 
   // Setup Status LED
   statusLED[0] = 0x008800;
@@ -308,6 +323,107 @@ void fill_row_rear(uint8_t row, CRGB color, uint8_t scale_brightness) {
   }
 }
 
+// Fills half a row.  0 for left half, 1 for right half.
+void fill_half_row(int logicDisplay, uint8_t row, uint8_t half, CRGB color, uint8_t scale_brightness=0) {
+  uint8_t start, end_col, total_led_cols;
+
+  if (logicDisplay == RLD) {
+    total_led_cols = REAR_COL; 
+  }
+  else {
+    total_led_cols = FRONT_COL; 
+  }
+  
+  if (!half) {
+    start = 0;
+    end_col = total_led_cols / 2;
+  }
+  else
+  {
+    start = total_led_cols / 2;
+    end_col = total_led_cols;
+  }
+  
+  if (scale_brightness != 0) color %= scale_brightness;
+
+  int8_t ledIndex;
+
+  switch (logicDisplay) {
+    case FLD_TOP: {
+      for (int i = start; i < end_col; i++) {
+        ledIndex = frontTopLedMatrix[i][row];
+        if (ledIndex != -1) {
+          front_leds[ledIndex] = color;
+        }
+      }
+      break;
+    }
+    case FLD_BOTTOM: {
+      for (int i = start; i < end_col; i++) {
+        ledIndex = frontBottomLedMatrix[i][row];
+        if (ledIndex != -1) {
+          front_leds[ledIndex] = color;
+        }
+      }
+      break;
+    }
+    case RLD: {
+      //DEBUG_PRINT_LN("RLD"); 
+      for (int i = start; i < end_col; i++) {
+        ledIndex = rearLedMatrix[i][row];
+        if (ledIndex != -1) {
+          rear_leds[ledIndex] = color;
+        }
+      }
+      break;
+    }
+    default: 
+      break;
+  }
+}
+
+void fill_column(int logicDisplay, uint8_t column, CRGB color, uint8_t scale_brightness=0) {
+  int shiftFactor = logicDisplay / 2;
+  DEBUG_PRINT(shiftFactor);DEBUG_PRINT(" ");DEBUG_PRINT_LN(shiftFactor*5);
+  DEBUG_PRINT("fill_column for LogicDisplay ");DEBUG_PRINT(logicDisplay);DEBUG_PRINT(" column ");DEBUG_PRINT(column);DEBUG_PRINT(" Color ");DEBUG_PRINT_LN(color);
+  if (scale_brightness != 0) color %= scale_brightness;
+
+  int8_t ledIndex;
+
+  switch (logicDisplay) {
+    case FLD_TOP: {
+      for (int i = 0; i < FRONT_ROW; i++) {
+        ledIndex = frontTopLedMatrix[column][i];
+        if (ledIndex != -1) {
+          front_leds[ledIndex] = color;
+        }
+      }
+      break;
+    }
+    case FLD_BOTTOM: {
+      for (int i = 0; i < FRONT_ROW; i++) {
+        ledIndex = frontBottomLedMatrix[column][i];
+        if (ledIndex != -1) {
+          front_leds[ledIndex] = color;
+        }
+      }
+      break;
+    }
+    case RLD: {
+      //DEBUG_PRINT_LN("RLD"); 
+      for (int i = 0; i < REAR_ROW; i++) {
+        ledIndex = rearLedMatrix[column][i];
+        if (ledIndex != -1) {
+          rear_leds[ledIndex] = color;
+        }
+      }
+      break;
+    }
+    default: 
+      break;
+  }
+}
+
 
 ///
 // Timing functions
@@ -339,11 +455,22 @@ bool globalTimeoutExpired(int logicDisplay)
   return timerExpired;
 }
 
+void loopsDonedoRestoreDefault(uint8_t logicDisplay)
+{
+  // Check to see if we have run the loops needed for this pattern
+  if ((globalPatternLoops[logicDisplay-1] == 0) && (!alwaysOn))
+  {
+    // Set back to the default pattern
+    lastEventCode[logicDisplay-1] = defaultPattern;
+    patternRunning[logicDisplay-1] = false;
+  }
+}
+
 void globalTimerDonedoRestoreDefault(int logicDisplay)
 {
   if (globalTimeoutExpired(logicDisplay)) {
     // Set the loops to 0 to catch any cases like that.
-    globalPatternLoops = 0;
+    globalPatternLoops[logicDisplay-1] = 0;
     // Global timeout expired, go back to default mode.
     lastEventCode[logicDisplay-1] = defaultPattern;
     patternRunning[logicDisplay-1] = false;
@@ -577,6 +704,102 @@ void ChangePalettePeriodically(int logicDisplay)
   }
 }
 
+void march(int logicDisplay, CRGB color, unsigned long time_delay, int loops, unsigned long runtime) //47 seconds Command 0T11
+{
+  int halfColumns;
+  if (firstTime[logicDisplay-1]) {
+    firstTime[logicDisplay-1] = false;
+    patternRunning[logicDisplay-1] = true;
+    globalPatternLoops[logicDisplay-1] = loops * 2;
+    if ((runtime != 0) && (!timingReceived)) set_global_timeout(logicDisplay, runtime);
+    if (timingReceived) set_global_timeout(logicDisplay, commandTiming);
+    ledPatternState[logicDisplay-1] = (logicDisplay) & 1; // This will have alternating halves on FLDs being on/off.  RLD will mimic FLD_TOP
+    allOFF(logicDisplay, true);
+    DEBUG_PRINT("First Time for "); DEBUG_PRINT_LN(logicDisplay);
+    DEBUG_PRINT("ledPatternState "); DEBUG_PRINT_LN(ledPatternState[logicDisplay-1]);
+  }
+  updateLed = 0;
+  if(checkDelay(logicDisplay)) {
+    switch (logicDisplay) {
+      case RLD : 
+      {
+        halfColumns = REAR_COL/2;
+        break;
+      }
+      default: //FLD
+      {
+        halfColumns = FRONT_COL/2;
+        break;
+      }
+    }
+    DEBUG_PRINT("checkDelay for "); DEBUG_PRINT_LN(logicDisplay);
+    DEBUG_PRINT("ledPatternState "); DEBUG_PRINT_LN(ledPatternState[logicDisplay-1]);
+    DEBUG_PRINT("1/2 Columns "); DEBUG_PRINT_LN(halfColumns);
+    for (int j = 0; j < halfColumns; j++) {
+      DEBUG_PRINT("Filling Column "); DEBUG_PRINT_LN(j + ledPatternState[logicDisplay-1] * halfColumns);
+      fill_column(logicDisplay, j + ledPatternState[logicDisplay-1] * halfColumns, color); //LogicDisplay, column, color
+      fill_column(logicDisplay, j + !ledPatternState[logicDisplay-1] * halfColumns, 0x000000); //LogicDisplay, column, color
+      DEBUG_PRINT(j + ledPatternState[logicDisplay-1] * halfColumns); DEBUG_PRINT_LN("ON");
+      DEBUG_PRINT(j + !ledPatternState[logicDisplay-1] * halfColumns); DEBUG_PRINT_LN("OFF");
+    }
+    updateLed = 1;
+    ledPatternState[logicDisplay-1] ^= 1;
+    globalPatternLoops[logicDisplay-1]--;
+  }
+  if (updateLed) {
+    FastLED.show();
+    set_delay(logicDisplay, time_delay);
+  }
+  if ((runtime == 0) && (!timingReceived)){
+    // Check to see if we have run the loops needed for this pattern
+    loopsDonedoRestoreDefault(logicDisplay);
+  } else {
+    // Check for the global timeout to have expired.
+    globalTimerDonedoRestoreDefault(logicDisplay);
+  }
+}
+
+void nmarch(int logicDisplay, CRGB color, unsigned long time_delay, int loops, unsigned long runtime) //47 seconds Command 0T11
+{
+  if (firstTime[logicDisplay-1]) {
+    firstTime[logicDisplay-1] = false;
+    patternRunning[logicDisplay-1] = true;
+    globalPatternLoops[logicDisplay-1] = loops * 2;
+    if ((runtime != 0) && (!timingReceived)) set_global_timeout(logicDisplay, runtime);
+    if (timingReceived) set_global_timeout(logicDisplay, commandTiming);
+    ledPatternState[logicDisplay-1] = (logicDisplay) & 1; // This will have alternating halves on FLDs being on/off.  RLD will mimic FLD_TOP
+    allOFF(logicDisplay, true);
+  }
+  updateLed = 0;
+  uint8_t num_rows;
+  
+  if(checkDelay(logicDisplay)) {
+    if (logicDisplay == RLD) num_rows = REAR_ROW;
+    else num_rows = FRONT_ROW;
+
+    for (int i = 0; i < num_rows; i++) {
+      fill_half_row(logicDisplay, i, ledPatternState[logicDisplay-1], color, 0);
+      fill_half_row(logicDisplay, i, !ledPatternState[logicDisplay-1], 0x000000, 0);
+    }
+    updateLed = 1;
+    ledPatternState[logicDisplay-1] ^= 1;
+    globalPatternLoops[logicDisplay-1]--;
+
+    set_delay(logicDisplay, time_delay);
+  }
+  
+  if (updateLed) {
+    updateDisplays();
+  }
+  
+  if ((runtime == 0) && (!timingReceived)){
+    // Check to see if we have run the loops needed for this pattern
+    loopsDonedoRestoreDefault(logicDisplay);
+  } else {
+    // Check for the global timeout to have expired.
+    globalTimerDonedoRestoreDefault(logicDisplay);
+  }
+}
 
 ///
 // Scrolling text stuff
@@ -1057,6 +1280,14 @@ void runPattern(int logicDisplay, int pattern) {
       SetRow(RLD, 2,  B00000000, 1, 0x00ff00);
       SetRow(RLD, 3, B00000000, 1, 0x00ff00);
       break;
+    case 11:
+      //void march(int logicDisplay, CRGB color, unsigned long time_delay, int loops, unsigned long runtime) //47 seconds Command 0T11
+      march(logicDisplay, 0xcccccc, 552, 0, 47);
+      break;
+    case 12:
+      //void march(int logicDisplay, CRGB color, unsigned long time_delay, int loops, unsigned long runtime) //47 seconds Command 0T11
+      nmarch(logicDisplay, 0xcccccc, 552, 0, 47);
+      break;      
     case 100:
       // Set display to Top front
       scrollMessage(logicText[logicDisplay-1], logicDisplay, 1, 0, 0x0000ff);
