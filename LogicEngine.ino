@@ -127,8 +127,16 @@ void setup() {
 #endif  
 
   // Setup the debug Serial Port.
+#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MK64FX512__) || defined(__MK66FX1M0__)
+  Serial.begin(BAUDRATE);
+  debugSerialPort = &Serial;
+#elif defined(__SAMD21G18A__)
   SerialUSB.begin(BAUDRATE);
   debugSerialPort = &SerialUSB;
+#else
+  // No Board settings known for serial port pins ... I'm going to barf this!
+  #error UNRECOGNIZED SERIAL PORT.  Sorry.
+#endif
   Serial1.begin(BAUDRATE);
   serialPort = &Serial1;
 
@@ -1210,6 +1218,11 @@ void loop() {
   if (currentMillis - prevFlipFlopMillis >= statusFlipFlopTime) {
     statusFlipFlop = statusFlipFlop ^ 1;
     prevFlipFlopMillis=currentMillis;
+    // Heartbeat code ... to check Serial connection
+    //char msg1[] = {"Flip"};
+    //char msg2[] = {"Flop"};
+    //if (statusFlipFlop) DEBUG_PRINT_LN(msg1);
+    //else DEBUG_PRINT_LN(msg2);
   }
   
   setStatusLED();
@@ -1360,6 +1373,10 @@ void serialEventRun(void)
 {
   //if (serialPort->available()) serialEvent();
   if (debugSerialPort->available()) debugSerialEvent();
+}
+
+void serialEvent() {
+  debugSerialEvent();
 }
 
 void debugSerialEvent() {

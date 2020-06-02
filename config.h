@@ -2,9 +2,7 @@
 // SERIAL CONFIGURATION
 ///
 
-#define BAUDRATE 2400 //this is the baudrate that we use to listen for incoming commands over JEDI_SERIAL
-//#define DEBUG_SERIAL SerialUSB
-//#define JEDI_SERIAL Serial1
+#define BAUDRATE 2400 //this is the baudrate that we use to listen for incoming commands over serial
 #define DEBUG  // uncomment this line to output debug messages on Debug serial
 
 // TEECES STUFF ....
@@ -272,7 +270,7 @@ unsigned long rearTextBuffer[REAR_ROW]; // Use to Store the text for Rear displa
 #define MAXSTRINGSIZE 64 // maximim letters in a logic display message
 char logicText[3][MAXSTRINGSIZE+1];
 
-//Setup Debug stuff for Real Arduino Pro Micros
+//Setup Debug stuff
 #ifdef DEBUG
     #define DEBUG_PRINT_LN(msg)  debugSerialPort->println(msg)
     #define DEBUG_PRINT(msg)  debugSerialPort->print(msg)
