@@ -31,6 +31,11 @@
  *              0 to set all dissplays to the same speed.
  *              @0Cyyy from R2Touch
  *  
+ *  Command G - Newly proposed JawaLite Extended command to set color for scrolling text
+ *              Should be in the form @0G0xrrggbb or @0Grrggbb hex input for RGB Colors
+ *              Each display can have its color set independently, or all displays can be set to the same color
+ *              @0Grrggbb from R2Touch
+ *  
  *  Command D - Go to Default mode which is the Standard Swipe Pattern.
  *              @0D from R2 Touch
  *              
@@ -1975,7 +1980,7 @@ void runPattern(int logicDisplay, int pattern) {
       VUMeter(logicDisplay, 250, 0, 0);      
     case 100:           //100 = Scroll Text (set by M command)
       //messageString[], logicDisplay, font, italic_slant, color) {
-      scrollMessage(logicText[logicDisplay-1], logicDisplay, alphabetType[logicDisplay-1], 1, 0x0000ff);
+      scrollMessage(logicText[logicDisplay-1], logicDisplay, alphabetType[logicDisplay-1], 1, fontColor[logicDisplay-1]);
       break;      
     default:
       DEBUG_PRINT("Pattern "); DEBUG_PRINT(pattern); DEBUG_PRINT_LN(" not valid.  Ignoring");
@@ -2132,8 +2137,8 @@ void parseCommand(char* inputStr)
   
   address= atoi(addrStr);        // extract the address
 
-  //DEBUG_PRINT(" I think this is the address! ");
-  //DEBUG_PRINT_LN(address);
+  DEBUG_PRINT(" I think this is the address! ");
+  DEBUG_PRINT_LN(address);
   
   // check for more
   if(!length>pos) goto beep;            // invalid, no command after address
@@ -2144,6 +2149,15 @@ void parseCommand(char* inputStr)
     pos++;
     if(!length>pos) goto beep;     // no message argument
     doMcommand(address, inputStr+pos);   // pass rest of string as argument
+    return;                     // exit
+  }
+
+  // special case of G commands, which take a hex string
+  if(inputStr[pos]=='G')
+  {
+    pos++;
+    if(!length>pos) goto beep;     // no message argument
+    doGcommand(address, inputStr+pos);   // pass rest of string as argument
     return;                     // exit
   }
   
@@ -2204,7 +2218,7 @@ void parseCommand(char* inputStr)
     case 'P':    
       if(!hasArgument) goto beep;       // invalid, no argument after command
       doPcommand(address, argument);
-      break;
+      break;    
     //case 'R':    
     //  if(!hasArgument) goto beep;       // invalid, no argument after command
     //  doRcommand(address, argument);
@@ -2362,7 +2376,7 @@ void doCcommand(int address, int argument)
   }
 }
 
-// Parameter handling for PSI settings
+// Parameter handling for Logic settings
 void doPcommand(int address, int argument)
 {
   
@@ -2394,4 +2408,31 @@ void doPcommand(int address, int argument)
     default:
       break;
   }  
+}
+
+// Parameter handling for Text Color settings
+void doGcommand(int address, char* argument)
+{
+  DEBUG_PRINT_LN();
+  DEBUG_PRINT("Command: G ");
+  DEBUG_PRINT("Address: ");
+  DEBUG_PRINT(address);
+  DEBUG_PRINT(" Argument: ");
+  DEBUG_PRINT_LN(argument);
+
+  // May want to do some checking on the received data???
+  if ((argument[0] == '0') && (argument[1] == 'x')){
+    DEBUG_PRINT_LN("Received Hex encoded CRGB");
+  }
+  else if (isxdigit(argument[0])) {
+    DEBUG_PRINT_LN("Received Hex encoded CRGB without 0x");
+  }
+  unsigned long val = strtol(argument, NULL, 16);
+  DEBUG_PRINT("Is this valid: ");DEBUG_PRINT_LN(val);
+  
+  DEBUG_PRINT("Set Color 0x");DEBUG_PRINT_LN(val);
+  if(address==0) {fontColor[0]=fontColor[1]=fontColor[2]=val;}
+  if(address==1) {fontColor[0]=val;}
+  if(address==2) {fontColor[1]=val;}
+  if(address==3) {fontColor[2]=val;}  
 }
