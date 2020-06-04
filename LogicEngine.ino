@@ -290,26 +290,6 @@ void setup() {
     rearColorIndex[i] = random(255);
   }
 
-  // Initialise the pattern arrays
-  //for (int i=0; i<3; i++){
-  //  lastEventCode[i] = defaultPattern;
-  //}
-
-  /*
-  // Scroll some text on startup ... because we can!
-  char fld_top_text[] PROGMEM ={"R2-D2"};
-  char fld_bot_text[] PROGMEM ={"Astromech"};
-  char rld_text[] PROGMEM ={"STARWARS"};
-
-  setText(FLD_TOP, fld_top_text);
-  setText(FLD_BOTTOM, fld_bot_text);
-  setText(RLD, rld_text);
-
-  scrollMessage(logicText[0], FLD_TOP, 0, 0, 0x0000ff);
-  scrollMessage(logicText[1], FLD_BOTTOM, 0, 0, 0x0000ff);
-  scrollMessage(logicText[2], RLD, 0, 1, 0x00ff00);
-  */
-
   // Setup Status LED
   statusLED[0] = 0x008800;
   statusLED[0] %= 20;
@@ -1866,6 +1846,13 @@ void loop() {
     //DEBUG_PRINT_LN("Main Loop Tick");
     previousMillis = currentMillis;
 
+    if (startup) {
+      for (int i=0;i<4;i++){
+        runPattern(i,100);
+      }
+      startup = false; 
+    }
+
     // Handle each display in the Logic independently.
     for (int i=0; i<3; i++) {
       // The Logics address is 1-3, so set that correctly.
@@ -1877,7 +1864,7 @@ void loop() {
       else
       {
         //DEBUG_PRINT("No Pattern Running "); DEBUG_PRINT_LN(i);
-        lastEventCode[i] == defaultPattern;
+        lastEventCode[i] = defaultPattern;
         runPattern(i+1, lastEventCode[i]);
       }
     }
@@ -1987,8 +1974,8 @@ void runPattern(int logicDisplay, int pattern) {
       // Set loops to 0 to remain on indefinately.
       VUMeter(logicDisplay, 250, 0, 0);      
     case 100:           //100 = Scroll Text (set by M command)
-      // Set display to Top front
-      scrollMessage(logicText[logicDisplay-1], logicDisplay, 1, 0, 0x0000ff);
+      //messageString[], logicDisplay, font, italic_slant, color) {
+      scrollMessage(logicText[logicDisplay-1], logicDisplay, alphabetType[logicDisplay-1], 1, 0x0000ff);
       break;      
     default:
       DEBUG_PRINT("Pattern "); DEBUG_PRINT(pattern); DEBUG_PRINT_LN(" not valid.  Ignoring");
@@ -2390,12 +2377,18 @@ void doPcommand(int address, int argument)
   {
     case 60:
       DEBUG_PRINT_LN("Select English");
-      if(address==0) {//alphabetType[0]=alphabetType[1]=alphabetType[2]=LATIN;
+      if(address==0) {alphabetType[0]=alphabetType[1]=alphabetType[2]=LATIN;
+      if(address==1) {alphabetType[0]=LATIN;}
+      if(address==2) {alphabetType[1]=LATIN;}
+      if(address==3) {alphabetType[2]=LATIN;}
         }
       break;
     case 61:    // Aurabesh
       DEBUG_PRINT_LN("Select Aurebesh");
-      if(address==0) {//alphabetType[0]=alphabetType[1]=alphabetType[2]=AURABESH;
+      if(address==0) {alphabetType[0]=alphabetType[1]=alphabetType[2]=AURABESH;
+      if(address==1) {alphabetType[0]=AURABESH;}
+      if(address==2) {alphabetType[1]=AURABESH;}
+      if(address==3) {alphabetType[2]=AURABESH;}
         }
       break;
     default:

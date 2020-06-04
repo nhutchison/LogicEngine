@@ -295,8 +295,12 @@ uint8_t rearVULedMatrixRight[REAR_COL+2][REAR_ROW] = {
 /////////////////////////////
 ////////////////////////////
 
+#define LATIN 1
+#define AURABESH 2
+
 unsigned long scrollDelay[3] = {75,75,75};   // adjust scrolling speed
 unsigned long bufferLong [3][10] = {0,0,0};
+byte alphabetType[3] = {LATIN,LATIN,LATIN}; // Stores the font for either English or Aurebesh
 
 // On the front Logics, we can use the standarc char buffer as it's 8 wide, the rear however
 // is 24 - 26 wide (depending on the slope of text) so we need to have another "store" for
@@ -304,9 +308,16 @@ unsigned long bufferLong [3][10] = {0,0,0};
 unsigned long rearTextBuffer[REAR_ROW]; // Use to Store the text for Rear display
 
 #define MAXSTRINGSIZE 64 // maximim letters in a logic display message
-char logicText[3][MAXSTRINGSIZE+1];
+char logicText[3][MAXSTRINGSIZE+1] = {"R2-D2", "  ASTROMECH", "Star Wars"};
 
-//Setup Debug stuff
+
+////////////////////////////////
+///////////////////////////////
+//   Setup Debug stuff      //
+/////////////////////////////
+////////////////////////////
+
+
 #ifdef DEBUG
     #define DEBUG_PRINT_LN(msg)  debugSerialPort->println(msg)
     #define DEBUG_PRINT(msg)  debugSerialPort->print(msg)
@@ -315,9 +326,23 @@ char logicText[3][MAXSTRINGSIZE+1];
   #define DEBUG_PRINT(msg)
 #endif // DEBUG
 
+////////////////////////////////
+///////////////////////////////
+// Command processing stuff //
+/////////////////////////////
+////////////////////////////
+
 // Command processing stuff
 // maximum number of characters in a command (63 chars since we need the null termination)
 #define CMD_MAX_LENGTH 64 
 
 // memory for command string processing
 char cmdString[CMD_MAX_LENGTH];
+
+////////////////////////////////
+///////////////////////////////
+//     Startup stuff        //
+/////////////////////////////
+////////////////////////////
+
+bool startup = true;
