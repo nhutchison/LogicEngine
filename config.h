@@ -253,13 +253,49 @@ uint8_t rearScrollLedMatrixLeft[REAR_COL+1][REAR_ROW] = {
 };
 
 
+// Used for the VU display to store global state ...
+// This is way bigger than needed since the fronts are only 8 wide.
+// I'm just being lazy here and creating the larger array to make my life easier.
+int vu_level[3][REAR_COL+2] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+
+// Yes it's a little strange, but lets use the matrix to split out "bars"
+// This is a right slanted
+uint8_t rearVULedMatrixRight[REAR_COL+2][REAR_ROW] = {
+  {  0, -1, -1, -1,},
+  {  1, 47, -1, -1,},
+  {  2, 46, 49, -1,},
+  { -1, 45, 50, 94,},
+  {  4, -1, 51, 93,},
+  {  5, 43, -1, 92,},
+  { -1, 42, 53, -1,},
+  {  7, -1, 54, 90,},
+  {  8, 40, -1, 89,},
+  { -1, 39, 56, -1,},
+  { 10, -1, 57, 87,},
+  { 11, 37, -1, 86,},
+  { -1, 36, 59, -1,},
+  { 13, -1, 60, 84,},
+  { 14, 34, -1, 83,},
+  { -1, 33, 62, -1,},
+  { 16, -1, 63, 81,},
+  { 17, 31, -1, 80,},
+  { -1, 30, 65, -1,},
+  { 19, -1, 66, 78,},
+  { 20, 28, -1, 77,},
+  { -1, 27, 68, -1,},
+  { 22, -1, 69, 75,},
+  { -1, 25, -1, 74,},
+  { -1, -1, 71, -1,},
+  { -1, -1, -1, 72,},
+};
+
 ////////////////////////////////
 ///////////////////////////////
 //   Scrolling Text Stuff   //
 /////////////////////////////
 ////////////////////////////
 
-unsigned long scrollDelay[3] = {200,200,200};   // adjust scrolling speed
+unsigned long scrollDelay[3] = {75,75,75};   // adjust scrolling speed
 unsigned long bufferLong [3][10] = {0,0,0};
 
 // On the front Logics, we can use the standarc char buffer as it's 8 wide, the rear however

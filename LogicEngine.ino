@@ -1,3 +1,105 @@
+/*********************************************************************************************
+ * 
+ * Neil's R-Series Sketch for controlling the Front and Rear Logics
+ * Written by Neil Hutchison and Tim Bates
+ * 
+ * This Sketch is compatible with both the Reactor Zero boards and the Teensy Boards.
+ * If you attempt to load this sketch on a different board setup, you will get errors.
+ * 
+ * 
+ *  BEFORE BUILDING OR UPLOADING THIS SKETCH, be sure that the config.h, fld_font.hand rld_font.h files are in the skectch folder. 
+ * 
+ *  ///////////////////////// COMMANDS AND COMMAND STRUCTURE /////////////////////////            
+ * 
+ *  
+ *  Supported JAWALite Commands via Serial or i2c:
+ *
+ *  Serial:
+ *
+ *  Command T - Trigger a numbered Mode.  Txx where xx is the pattern number below. When using the R2 Touch app, commands
+ *              should be in the form @0Tx\r or @0Txx\r. Please see below for address information for the T command. 
+ *              
+ *              The Optional time parameter can be sent by adding |yy to the T command.  Commands should be in the form
+ *              @0Tx|y.  y is a value in seconds.
+ *  
+ *  Command A - Go to Main mode of operation which is Standard Swipe Pattern.
+ *              @0A from R2 Touch
+ *              
+ *  Command C - Set the Speed for the Scrolling Text
+ *              yyy should be between 20 and 500 (20 is very fast, and 500 is very slow).  75 is the default.
+ *              Each Display can have speed set independently using xCyyy where x is the address (1,2,3) or 
+ *              0 to set all dissplays to the same speed.
+ *              @0Cyyy from R2Touch
+ *  
+ *  Command D - Go to Default mode which is the Standard Swipe Pattern.
+ *              @0D from R2 Touch
+ *              
+ *  Command M - Set a message to be displayed on one of the logics.  (Triggered by xT100)
+ *              @xM<message> from R2 Touch
+ *              '1MHello' will set the Front Top Logic to display the message "Hello"
+ *  
+ *                                          
+ *                                       ***************************   
+ *                                       ********   WARNING ********
+ *                                       ***************************
+ *                                       
+ *              This LOGIC CAN DRAW MORE POWER THAN YOUR computer's USB PORT CAN SUPPLY!! When using the USB connection 
+ *              on the R-Series to power the Logic (during programming for instance) be sure to have the brightness 
+ *              POT turned nearly all the way COUNTERCLOCKWISE.  Having the POT turned up too far when plugged into 
+ *              USB can damage the R-Series and/or your computer's USB port!!!! If you are using the internal brightness
+ *              control and are connected to USB, KEEP THIS VALUE LOW, not higher than 20. The LED boards can also be removed
+ *              from the R-Series control board during  programming. 
+ * 
+ *  i2c:
+ *
+ *  When sending i2c command the Panel Address is defined on the config.h tab to be 22.  The command type and value are needed.  
+ *  To trigger a pattern, send an address (0 for all, 4 for front, 5 for rear) then the character 'T' and the Mode value corresponding 
+ *  to the pattern list below to trigger the corresponding sequence. Sequences must be terminated with a carriage return (\r).  
+ *  
+ *  Using i2c with the R2 Touch app, commands must be sent in hex. For example, &220T6\r would be spelled &22,x33,x54,x36,x0D\r
+ *  
+ *  Commands:
+ *  
+ *  Address modifiers for "T" commands.  The digit preceeding the T is the address:
+ *  
+ *  0 is all
+ *  1 is Front Top Logic
+ *  2 is Front Bottom Logic
+ *  3 os Rear Logic as taken from Marc's Teeces command guide.
+ *  
+ *      Address field is interpreted as follows:
+ *      0 - global address, all displays that support the command are set
+ *      1 - TFLD (Top Front Logic Dislay)
+ *      2 - BFLD (Bottom Front Logic Display)
+ *      3 - RLD  (Rear Logic Display)
+ *      4 - Front PSI
+ *      5 - Rear PSI
+ *      6 - Front Holo (not implemented here)
+ *      7 - Rear Holo  (not implemented here)
+ *      8 - Top Holo   (not implemented here)
+ *
+ *  Command T Modes
+ *  Sensitivity to flashing lights can be as slow as 3x/second.  
+ *    e.g. Flash, Alarm, Scream
+ *  You must be cautious.
+ * 
+ *    Mode 0  - Turn Panel off (This will also turn stop the Teeces if they share the serial connection and the "0" address is used)
+ *    Mode 1  - Default (Random Blinkies) The default mode can be changed on the config.h tab
+ *    Mode 2  - Flash (fast flash) (4 seconds) Use caution around those sensitive to flashing lights.  
+ *    Mode 3  - Alarm (slow flash) (4 seconds)
+ *    Mode 4  - Short Circuit (10 seconds)    
+ *    Mode 5  - Scream (4 seconds)
+ *    Mode 6  - Leia Message (34 seconds)
+ *    Mode 11 - Imperial March (47 seconds)
+ *    Mode 12 - Disco Ball (4 seconds)
+ *    Mode 13 - Disco Ball - Runs Indefinitely
+ *    Mode 21 - VU Meter (4 seconds)
+ *    Mode 92 - VU Meter - Runs Indefinitely (Spectrum on Teeces)
+ *    
+ * Most users shouldn't need to change anything below this line. Please see the config.h tab    
+ * for user adjustable settings.  
+*/
+
 // Arduino Libraries
 #include "FastLED.h"
 #include "Wire.h"
@@ -95,8 +197,8 @@ uint8_t totalShiftsForChar[3] = {0,0,0};
 //bool scrollDisplayFirstTime[3] = {false};
 
 // Function prototype for helper functions
-void fill_row_front(uint8_t row, CRGB color, uint8_t scale_brightness=0);
-void fill_row_rear(uint8_t row, CRGB color, uint8_t scale_brightness=0);
+void fill_row(int logicDisplay, uint8_t row, CRGB color, uint8_t scale_brightness=0);
+void fill_column(int logicDisplay, uint8_t column, CRGB color, uint8_t scale_brightness=0);
 
 ///
 // Different board setup stuff....
@@ -109,6 +211,16 @@ void fill_row_rear(uint8_t row, CRGB color, uint8_t scale_brightness=0);
   #include <RTCZero.h>
   RTCZero rtc;
 #endif
+
+
+// Function Prototypes
+/*
+// function prototype for the Matrix Display.  This is doing cleverness.  Don't change it!
+void displayMatrixColor(int logicDisplay, byte PROGMEM * matrix, 
+                        CRGB fgcolor, CRGB bgcolor, bool displayMe, unsigned long timeout, 
+                        CRGB color2=0x000000, CRGB color3=0x000000, CRGB color4=0x000000, CRGB color5=0x000000,
+                        CRGB color6=0x000000, CRGB color7=0x000000, CRGB color8=0x000000);
+*/
 
 void setup() { 
   
@@ -227,15 +339,11 @@ void setStatusLED() {
     statusLED[0] %= 20;
 }
 
-void allOFF(int logicDisplay, bool showLED, unsigned long runtime=0)
+void allOFF(int logicDisplay, bool showLED, CRGB color=0x000000, unsigned long runtime=0)
 {
-  if (logicDisplay == 0){
-    DEBUG_PRINT_LN("ADD ALL HANDLING");
-    return;
-  }
   
   if (firstTime[logicDisplay-1]) {
-    //DEBUG_PRINT_LN("All Off");
+    DEBUG_PRINT_LN("All Off");
     // If the address is 0, turn all off, else turn only one display off
     firstTime[logicDisplay-1] = false;
     patternRunning[logicDisplay-1] = true;
@@ -244,33 +352,17 @@ void allOFF(int logicDisplay, bool showLED, unsigned long runtime=0)
     if (timingReceived) set_global_timeout(logicDisplay, commandTiming);
     //DEBUG_PRINT_LN(runtime);
   }
-  
-  //DEBUG_PRINT_LN("LED All Off");
-  //FastLED.clear();
-  // Can't use FastLED.clear() since it clear's all LED's!
 
   int start_row, end_row = 0;
 
-  
-  if (logicDisplay == FLD_TOP)
-  {
-    start_row = 0;
-    end_row = 5;
-  }
-  else if (logicDisplay == FLD_BOTTOM)
-  {
-    start_row = 5;
-    end_row = 10;
-  }
-
   if ((logicDisplay == FLD_TOP) || (logicDisplay == FLD_BOTTOM)) {
-    for (int i = start_row; i < end_row; i++) {
-       fill_row_front(i, 0x000000);
+    for (int i = 0; i < FRONT_ROW; i++) {
+       fill_row(logicDisplay, i, color);
     }
   }
   else if (logicDisplay == RLD) {
-    for (int i = 0; i < 4; i++) {
-      fill_row_rear(i, 0x000000);
+    for (int i = 0; i < REAR_ROW; i++) {
+      fill_row(logicDisplay, i, color);
     }
   }
   
@@ -290,43 +382,33 @@ void allOFF(int logicDisplay, bool showLED, unsigned long runtime=0)
   }
 }
 
-// Row is defined as Top to bottom 0-9, where 0 is Top Logic, Top Row, and 9 is Bottom Logic, Bottom Row.
-// Note that color can be either CRGB or CHSV ;)
-void fill_row_front(uint8_t row, CRGB color, uint8_t scale_brightness) {
-  
-  // If row is less than 5, it's the top logic, else it's the bottom logic
-  if (row < FRONT_ROW) {
-    for (int i = 0; i < FRONT_COL; i++) {
-      int8_t ledIndex = frontTopLedMatrix[i][row];
-      if (ledIndex != -1) {
-        front_leds[ledIndex] = color;
-        if (scale_brightness != 0) front_leds[ledIndex] %= scale_brightness;
-      }
-    }
-  }
-  // it's the bottom logic
-  else
-  {
-    for (int i = 0; i < FRONT_COL; i++) {
-      int8_t ledIndex = frontBottomLedMatrix[i][row - FRONT_ROW];
-      if (ledIndex != -1) {
-        front_leds[ledIndex] = color;
-        if (scale_brightness != 0) front_leds[ledIndex] %= scale_brightness;
-      }
-    }
-  }
+void allON(int logicDisplay, bool showLED, CRGB color, unsigned long runtime=0)
+{
+  allOFF(logicDisplay, showLED, color, runtime);
 }
 
 
-// Row is defined as Top to bottom 0-3.
-// Note that color can be either CRGB or CHSV ;)
-void fill_row_rear(uint8_t row, CRGB color, uint8_t scale_brightness) {
+void fill_row(int logicDisplay, uint8_t row, CRGB color, uint8_t scale_brightness) {
+
+  int8_t ledIndex;
   
-  for (int i = 0; i < REAR_COL; i++) {
-    int8_t ledIndex = rearLedMatrix[i][row];
-    if (ledIndex != -1) {
-      rear_leds[ledIndex] = color;
-      if (scale_brightness != 0) rear_leds[ledIndex] %= scale_brightness;
+  if ((logicDisplay == FLD_TOP) ||  (logicDisplay == FLD_BOTTOM)) {
+    for (int i = 0; i < FRONT_COL; i++) {
+      if (logicDisplay == FLD_TOP) ledIndex = frontTopLedMatrix[i][row];
+      else ledIndex = frontBottomLedMatrix[i][row];
+      if (ledIndex != -1) {
+        front_leds[ledIndex] = color;
+        if (scale_brightness != 0) front_leds[ledIndex] %= scale_brightness;
+      }
+    }
+  }
+  else if (logicDisplay == RLD){
+    for (int i = 0; i < REAR_COL; i++) {
+      ledIndex = rearLedMatrix[i][row];
+      if (ledIndex != -1) {
+        rear_leds[ledIndex] = color;
+        if (scale_brightness != 0) rear_leds[ledIndex] %= scale_brightness;
+      }
     }
   }
 }
@@ -390,7 +472,7 @@ void fill_half_row(int logicDisplay, uint8_t row, uint8_t half, CRGB color, uint
   }
 }
 
-void fill_column(int logicDisplay, uint8_t column, CRGB color, uint8_t scale_brightness=0) {
+void fill_column(int logicDisplay, uint8_t column, CRGB color, uint8_t scale_brightness) {
   int shiftFactor = logicDisplay / 2;
   DEBUG_PRINT(shiftFactor);DEBUG_PRINT(" ");DEBUG_PRINT_LN(shiftFactor*5);
   DEBUG_PRINT("fill_column for LogicDisplay ");DEBUG_PRINT(logicDisplay);DEBUG_PRINT(" column ");DEBUG_PRINT(column);DEBUG_PRINT(" Color ");DEBUG_PRINT_LN(color);
@@ -429,6 +511,206 @@ void fill_column(int logicDisplay, uint8_t column, CRGB color, uint8_t scale_bri
     }
     default: 
       break;
+  }
+}
+
+// Display a solid line across each row in ascending or decending order, based on the scanDirection.
+// Scan Direction:
+//  0: Scan down from the top row
+//  1: Scan up from the bottom row.
+void scanRow(int logicDisplay, unsigned long time_delay, int start_row, CRGB color, bool scanDirection)
+{
+  int total_columns, total_rows;
+
+  // Set a default start level for each column.
+  if (logicDisplay == RLD) {
+    total_columns = REAR_COL;
+    total_rows = REAR_ROW;
+  }
+  else
+  {
+    total_columns = FRONT_COL;
+    total_rows = FRONT_ROW;
+  }
+ 
+  if (firstTime[logicDisplay-1]) {
+    if (scanDirection == 0) ledPatternState[logicDisplay-1] = start_row;
+    // Down
+    if (scanDirection == 1) ledPatternState[logicDisplay-1] = (total_rows - 1) - start_row;
+    firstTime[logicDisplay-1] = false;
+    patternRunning[logicDisplay-1] = true;
+  }
+
+  updateLed = 0;
+
+  if (checkDelay(logicDisplay)) {
+    switch (ledPatternState[logicDisplay-1]) {
+      case 0: {
+          allOFF(logicDisplay, true);
+          fill_row(logicDisplay, 0, color);
+          updateLed = 1;
+          break;
+        }
+      case 1: {
+          allOFF(logicDisplay, true);
+          fill_row(logicDisplay, 1, color);
+          updateLed = 1;
+          break;
+        }
+      case 2: {
+          allOFF(logicDisplay, true);
+          fill_row(logicDisplay, 2, color);
+          updateLed = 1;
+          break;
+        }
+      case 3: {
+          allOFF(logicDisplay, true);
+          fill_row(logicDisplay, 3, color);
+          updateLed = 1;
+          break;
+        }
+      case 4: {
+          allOFF(logicDisplay, true);
+          fill_row(logicDisplay, 4, color);
+          updateLed = 1;
+          if (logicDisplay == RLD) ledPatternState[logicDisplay-1]++;
+          break;
+        }
+      case 5: {
+          allOFF(logicDisplay, true);
+          fill_row(logicDisplay, 5, color);
+          updateLed = 1;
+          break;
+        }
+      default: {
+          // Do nothing.
+          break;
+        }
+    }
+
+    // Increment the state.
+    if (scanDirection == 0) ledPatternState[logicDisplay-1]++;
+    if (scanDirection == 1) ledPatternState[logicDisplay-1]--;
+    if (ledPatternState[logicDisplay-1] < 0)
+    {
+      ledPatternState[logicDisplay-1] = (total_rows - 1);
+      globalPatternLoops[logicDisplay-1]--;
+    }
+    else if (ledPatternState[logicDisplay-1] > (total_rows - 1))
+    {
+      ledPatternState[logicDisplay-1] = 0;
+      globalPatternLoops[logicDisplay-1]--;
+    }
+  }
+
+  if (updateLed) {
+    updateDisplays();
+    set_delay(logicDisplay, time_delay);
+  }
+}
+
+// Scans down the rows starting at the first specified row from the bottom
+void scanRowDownUp(int logicDisplay, unsigned long time_delay, int start_row, CRGB color, bool scanDirection)
+{
+  int total_columns, total_rows;
+
+  // Set a default start level for each column.
+  if (logicDisplay == RLD) {
+    total_columns = REAR_COL;
+    total_rows = REAR_ROW;
+  }
+  else
+  {
+    total_columns = FRONT_COL;
+    total_rows = FRONT_ROW;
+  }
+
+  
+  if (firstTime[logicDisplay-1]) {
+    if (scanDirection == 0) ledPatternState[logicDisplay-1] = start_row;
+    if (scanDirection == 1) ledPatternState[logicDisplay-1] = (total_rows - 1) - start_row;
+    firstTime[logicDisplay-1] = false;
+    patternRunning[logicDisplay-1] = true;
+  }
+
+  updateLed = 0;
+
+  if (checkDelay(logicDisplay)) {
+    switch (ledPatternState[logicDisplay-1]) {
+      case 0: {
+          allOFF(logicDisplay, true);
+          fill_row(logicDisplay, 0, color);
+          updateLed = 1;
+          break;
+        }
+      case 1: {
+          allOFF(logicDisplay, true);
+          fill_row(logicDisplay, 1, color);
+          updateLed = 1;
+          break;
+        }
+      case 2: {
+          allOFF(logicDisplay, true);
+          fill_row(logicDisplay, 2, color);
+          updateLed = 1;
+          break;
+        }
+      case 3: {
+          allOFF(logicDisplay, true);
+          fill_row(logicDisplay, 3, color);
+          updateLed = 1;
+          if (logicDisplay == RLD) ledPatternState[logicDisplay-1]++;
+          break;
+        }
+      case 4: {
+          allOFF(logicDisplay, true);
+          fill_row(logicDisplay, 4, color);
+          updateLed = 1;
+          break;
+        }
+      case 5: {
+          allOFF(logicDisplay, true);
+          fill_row(logicDisplay, 3, color);
+          updateLed = 1;
+          break;
+        }
+      case 6: {
+          allOFF(logicDisplay, true);
+          fill_row(logicDisplay, 2, color);
+          updateLed = 1;
+          break;
+        }
+      case 7: {
+          allOFF(logicDisplay, true);
+          fill_row(logicDisplay, 1, color);
+          updateLed = 1;
+          break;
+        }
+      default: {
+          // Do nothing.
+          break;
+        }
+    }
+
+    // Increment the state.
+    if (scanDirection == 0) ledPatternState[logicDisplay-1]++;
+    if (scanDirection == 1) ledPatternState[logicDisplay-1]--;
+
+    if (ledPatternState[logicDisplay-1] < 0)
+    {
+      ledPatternState[logicDisplay-1] = 7;
+      globalPatternLoops[logicDisplay-1]--;
+    }
+    else if (ledPatternState[logicDisplay-1] > 7)
+    {
+      ledPatternState[logicDisplay-1] = 0;
+      globalPatternLoops[logicDisplay-1]--;
+    }
+  }
+
+  if (updateLed) {
+    updateDisplays();
+    set_delay(logicDisplay, time_delay);
   }
 }
 
@@ -712,64 +994,238 @@ void ChangePalettePeriodically(int logicDisplay)
   }
 }
 
-void march(int logicDisplay, CRGB color, unsigned long time_delay, int loops, unsigned long runtime) //47 seconds Command 0T11
+// Flashes all LED's to the given color.  The time_delay is the delay that the LED is on then Off
+void Flash(int logicDisplay, unsigned long time_delay, int loops, CRGB color, unsigned long runtime) //4 seconds same as alarm Command 0T2
 {
-  int halfColumns;
-  if (firstTime[logicDisplay-1]) {
-    firstTime[logicDisplay-1] = false;
-    patternRunning[logicDisplay-1] = true;
-    globalPatternLoops[logicDisplay-1] = loops * 2;
+  if (firstTime[logicDisplay - 1]) {
+    DEBUG_PRINT_LN("Flash");
+    firstTime[logicDisplay - 1] = false;
+    patternRunning[logicDisplay - 1] = true;
+    if (loops != 0) globalPatternLoops[logicDisplay - 1] = loops * 2;
+    else globalPatternLoops[logicDisplay - 1] = 2;
     if ((runtime != 0) && (!timingReceived)) set_global_timeout(logicDisplay, runtime);
     if (timingReceived) set_global_timeout(logicDisplay, commandTiming);
-    ledPatternState[logicDisplay-1] = (logicDisplay) & 1; // This will have alternating halves on FLDs being on/off.  RLD will mimic FLD_TOP
-    allOFF(logicDisplay, true);
-    DEBUG_PRINT("First Time for "); DEBUG_PRINT_LN(logicDisplay);
-    DEBUG_PRINT("ledPatternState "); DEBUG_PRINT_LN(ledPatternState[logicDisplay-1]);
+    ledPatternState[logicDisplay - 1] = 0;
   }
+
   updateLed = 0;
-  if(checkDelay(logicDisplay)) {
-    switch (logicDisplay) {
-      case RLD : 
-      {
-        halfColumns = REAR_COL/2;
-        break;
-      }
-      default: //FLD
-      {
-        halfColumns = FRONT_COL/2;
-        break;
-      }
+
+  if (checkDelay(logicDisplay)) {
+    switch (ledPatternState[logicDisplay - 1]) {
+      case 0: {
+          allON(logicDisplay, false, color);
+          updateLed = 1;
+          break;
+        }
+      case 1: {
+          allOFF(logicDisplay, false);
+          updateLed = 1;
+          break;
+        }
+      default: {
+          // Do nothing.
+          break;
+        }
     }
-    DEBUG_PRINT("checkDelay for "); DEBUG_PRINT_LN(logicDisplay);
-    DEBUG_PRINT("ledPatternState "); DEBUG_PRINT_LN(ledPatternState[logicDisplay-1]);
-    DEBUG_PRINT("1/2 Columns "); DEBUG_PRINT_LN(halfColumns);
-    for (int j = 0; j < halfColumns; j++) {
-      DEBUG_PRINT("Filling Column "); DEBUG_PRINT_LN(j + ledPatternState[logicDisplay-1] * halfColumns);
-      fill_column(logicDisplay, j + ledPatternState[logicDisplay-1] * halfColumns, color); //LogicDisplay, column, color
-      fill_column(logicDisplay, j + !ledPatternState[logicDisplay-1] * halfColumns, 0x000000); //LogicDisplay, column, color
-      DEBUG_PRINT(j + ledPatternState[logicDisplay-1] * halfColumns); DEBUG_PRINT_LN("ON");
-      DEBUG_PRINT(j + !ledPatternState[logicDisplay-1] * halfColumns); DEBUG_PRINT_LN("OFF");
-    }
-    updateLed = 1;
-    ledPatternState[logicDisplay-1] ^= 1;
-    globalPatternLoops[logicDisplay-1]--;
+
+    // Toggle the state.
+    ledPatternState[logicDisplay - 1] ^= 1;
+    globalPatternLoops[logicDisplay - 1]--;
   }
+
   if (updateLed) {
-    FastLED.show();
+    updateDisplays();
     set_delay(logicDisplay, time_delay);
   }
-  if ((runtime == 0) && (!timingReceived)){
-    // Check to see if we have run the loops needed for this pattern
-    loopsDonedoRestoreDefault(logicDisplay);
+
+  if ((runtime == 0) && (!timingReceived)) {
+    if (loops) {
+      // Check to see if we have run the loops needed for this pattern
+      loopsDonedoRestoreDefault(logicDisplay);
+    }
   } else {
     // Check for the global timeout to have expired.
     globalTimerDonedoRestoreDefault(logicDisplay);
   }
 }
 
-void nmarch(int logicDisplay, CRGB color, unsigned long time_delay, int loops, unsigned long runtime) //47 seconds Command 0T11
+// Flashes all LED's to the given color.  The time_delay is the delay that the LED is on then Off
+void FadeOut(int logicDisplay, unsigned long time_delay, int loops) //4 seconds same as alarm Command 0T2
+{
+
+  // Variables to control the dim/brightness levels
+  uint8_t dim_by;
+  uint8_t multiply_by;
+
+  int case0count = 4;
+  int case1count = 8;
+
+  int totalLoopCount  = loops * (case0count + case1count);
+
+  // Note that we don't set the panel off here first
+  // We use the brightness, and fade API's to play with
+  // the panel appearance.
+  
+  if (firstTime[logicDisplay - 1]) {
+    DEBUG_PRINT_LN("Fade Out");
+    firstTime[logicDisplay - 1] = false;
+    patternRunning[logicDisplay - 1] = true;
+    if (loops != 0) globalPatternLoops[logicDisplay - 1] = totalLoopCount;
+    else globalPatternLoops[logicDisplay - 1] = 12;
+
+    ledPatternState[logicDisplay - 1] = 0;
+    
+    // Just ignore the timing from the command, this sequence doesn't work with it.
+    if (timingReceived) timingReceived = false; 
+  }
+
+  updateLed = 0;
+
+  int8_t ledIndex;
+
+  if (checkDelay(logicDisplay)) {
+    switch (ledPatternState[logicDisplay-1]) {
+      // Note we set the display timeout large here so that the image stays displayed.
+      // Do this 4 times ....
+      case 0:
+        if (logicDisplay == RLD) {
+          for (int x = 0; x < NUM_REAR_LEDS; x++) {
+            dim_by = random(220, 250);
+            rear_leds[x].nscale8_video(dim_by);
+          }
+        }
+        else {
+          for (int y = 0; y < FRONT_ROW; y++) {
+            for (int x = 0; x < FRONT_COL; x++) {
+              dim_by = random(220, 250);
+              //DEBUG_PRINT(x);DEBUG_PRINT(",");DEBUG_PRINT_LN(y);
+              if (logicDisplay == FLD_TOP) ledIndex = frontTopLedMatrix[x][y];
+              else ledIndex = frontBottomLedMatrix[x][y];
+              if (ledIndex != -1) {
+                front_leds[ledIndex].nscale8_video(dim_by);
+              }
+            }
+          }
+        }
+        updateLed = 1;
+        break;
+      // Do this 8 times....
+      case 1:
+        if (logicDisplay == RLD) {
+          for (int x = 0; x < NUM_REAR_LEDS; x++) {
+            multiply_by = random(0, 6);
+            rear_leds[x] *= multiply_by;
+          }
+        }
+        else {
+          for (int y = 0; y < FRONT_ROW; y++) {
+            for (int x = 0; x < FRONT_COL; x++) {
+              multiply_by = random(0, 6);
+              if (logicDisplay == FLD_TOP) ledIndex = frontTopLedMatrix[x][y];
+              else ledIndex = frontBottomLedMatrix[x][y];
+              if (ledIndex != -1) {
+                front_leds[ledIndex] *= multiply_by;
+              }
+            }
+          }
+        }
+        updateLed = 1;
+        break;
+      default: {
+          // Do nothing.
+          break;
+        }
+    }
+
+    // Toggle the state.
+    // Really ugly way of counting loops :(
+    if (globalPatternLoops[logicDisplay - 1] == totalLoopCount - case0count) ledPatternState[logicDisplay - 1] = ledPatternState[logicDisplay - 1] ^ 1;
+    if (globalPatternLoops[logicDisplay - 1] == totalLoopCount - (case0count + case1count)) ledPatternState[logicDisplay - 1] = ledPatternState[logicDisplay - 1] ^ 1;
+    if (globalPatternLoops[logicDisplay - 1] == totalLoopCount - (case0count + case1count + case0count)) ledPatternState[logicDisplay - 1] = ledPatternState[logicDisplay - 1] ^ 1;
+    if (globalPatternLoops[logicDisplay - 1] == totalLoopCount - (case0count + case1count + case0count + case1count)) ledPatternState[logicDisplay - 1] = ledPatternState[logicDisplay - 1] ^ 1;
+    globalPatternLoops[logicDisplay - 1]--;
+  }
+
+  if (updateLed) {
+    updateDisplays();
+    set_delay(logicDisplay, time_delay);
+  }
+
+  // Check to see if we have run the loops needed for this pattern
+  loopsDonedoRestoreDefault(logicDisplay);
+}
+
+// Disco Ball sequence 
+void DiscoBall(int logicDisplay, unsigned long time_delay, int loops, int numSparkles, CRGB color, unsigned long runtime, uint8_t scale_brightness = 0)
+{
+  if (scale_brightness != 0) color %= scale_brightness;
+  if (firstTime[logicDisplay - 1]) {
+    DEBUG_PRINT_LN("Disco Ball");
+    firstTime[logicDisplay - 1] = false;
+    patternRunning[logicDisplay - 1] = true;
+    if (loops != 0) globalPatternLoops[logicDisplay - 1] = loops * 2;
+    else globalPatternLoops[logicDisplay - 1] = 2;
+    if ((runtime != 0) && (!timingReceived)) set_global_timeout(logicDisplay, runtime);
+    if (timingReceived) set_global_timeout(logicDisplay, commandTiming);
+    ledPatternState[logicDisplay - 1] = 0;
+    allOFF(logicDisplay, true);
+  }
+  updateLed = 0;
+  if (checkDelay(logicDisplay)) {
+    switch (ledPatternState[logicDisplay - 1]) {
+      case 0: {
+          int numLeds;
+          uint8_t led;
+          if (logicDisplay == RLD) {
+            numLeds = NUM_REAR_LEDS;
+            for (int i = 0; i < numSparkles * 2; i++) {
+              // This ignores the matrix, but should be ok for random sparkes.
+              led = random(numLeds);
+              rear_leds[led] = color;
+            }
+          } else {
+            numLeds = NUM_FRONT_LEDS / 2;
+            for (int i = 0; i < numSparkles; i++) {
+              // This ignores the matrix, but should be ok for random sparkes.
+              led = random(numLeds) + logicDisplay / 2 * numLeds;
+              front_leds[led] = color;
+            }
+          }
+          updateLed = 1;
+          break;
+        }
+      case 1: {
+          allOFF(logicDisplay, true);
+          updateLed = 1;
+          break;
+        }
+      default:
+        break;
+    }
+    ledPatternState[logicDisplay - 1] ^= 1;
+    globalPatternLoops[logicDisplay - 1]--;
+  }
+  
+  if (updateLed) {
+    updateDisplays();
+    set_delay(logicDisplay, time_delay);
+  }
+  
+  if ((runtime == 0) && (!timingReceived)) {
+    if (loops) {
+      // Check to see if we have run the loops needed for this pattern
+      loopsDonedoRestoreDefault(logicDisplay);
+    }
+  } else {
+    // Check for the global timeout to have expired.
+    globalTimerDonedoRestoreDefault(logicDisplay);
+  }
+}
+
+void March(int logicDisplay, CRGB color, unsigned long time_delay, int loops, unsigned long runtime) //47 seconds Command 0T11
 {
   if (firstTime[logicDisplay-1]) {
+    DEBUG_PRINT_LN("March");
     firstTime[logicDisplay-1] = false;
     patternRunning[logicDisplay-1] = true;
     globalPatternLoops[logicDisplay-1] = loops * 2;
@@ -807,6 +1263,235 @@ void nmarch(int logicDisplay, CRGB color, unsigned long time_delay, int loops, u
     // Check for the global timeout to have expired.
     globalTimerDonedoRestoreDefault(logicDisplay);
   }
+}
+
+// logicDisplay, Delay, loops, runtime
+void VUMeter(int logicDisplay, unsigned long time_delay, uint8_t loops, unsigned long runtime)
+{
+  // We use the VU_chart matrix to define the colors used
+  // Then we'll simply display as many or as few of the pixels as we want
+  // and use a random number to determine rise and fall.
+
+  int total_columns, total_rows;
+
+  // Set a default start level for each column.
+  if (logicDisplay == RLD) {
+    total_columns = REAR_COL+2;
+    total_rows = REAR_ROW;
+  }
+  else
+  {
+    total_columns = FRONT_COL;
+    total_rows = FRONT_ROW;
+  }
+
+  if (firstTime[logicDisplay-1]) {
+    DEBUG_PRINT_LN("VU Meter");
+    firstTime[logicDisplay-1] = false;
+    patternRunning[logicDisplay-1] = true;
+    if (loops != 0) globalPatternLoops[logicDisplay-1] = loops;
+    else globalPatternLoops[logicDisplay-1] = 2;
+    if ((runtime != 0) && (!timingReceived)) set_global_timeout(logicDisplay, runtime);
+    if (timingReceived) set_global_timeout(logicDisplay, commandTiming);
+    allOFF(logicDisplay, true);
+    
+    for (int i=0; i< total_columns; i++)
+    {
+      if (logicDisplay == RLD) {
+        // Skip columns to better define the bars...
+        //if ((i ==  2) || (i ==  5) || (i ==  8) || (i == 11) ||
+        //    (i == 14) || (i == 17) || (i == 20) || (i == 23))
+        //    {
+        //      // Skip a column to define the bars better ....
+        //      vu_level[logicDisplay-1][i] = 5;
+        //      i++;
+        //    }
+        vu_level[logicDisplay-1][i] = vu_level[logicDisplay-1][i++] = random(0, total_rows);
+      } else {
+        vu_level[logicDisplay-1][i] = random(0, total_rows);
+      }
+    }
+  }
+
+  updateLed = 0;
+  int8_t ledIndex;
+
+  if (checkDelay(logicDisplay)) {
+
+    // Now go through each column, and set the pixel colors
+    for (int c = 0; c < total_columns; c++)
+    {
+      DEBUG_PRINT(" Col : ");DEBUG_PRINT(c);DEBUG_PRINT(" level : ");DEBUG_PRINT_LN(vu_level[logicDisplay-1][c]);
+      for (int i = 0; i < total_rows; i++) {
+        if (logicDisplay == RLD) ledIndex = rearScrollLedMatrixRight[c][i];
+        else if (logicDisplay == FLD_TOP) ledIndex = frontTopLedMatrix[c][i];
+        else ledIndex = frontBottomLedMatrix[c][i];
+        
+        if (ledIndex != -1) {
+          if (logicDisplay == RLD) {
+            if (vu_level[logicDisplay-1][c] <= i) {
+              switch (i) {
+                case 3:
+                case 2:
+                  rear_leds[ledIndex] = 0x00ff00;
+                  break;
+                case 1:
+                  rear_leds[ledIndex] = 0xffd700;
+                  break;
+                case 0: 
+                  rear_leds[ledIndex] = 0xff0000;
+                  break;
+              }
+            }
+            else rear_leds[ledIndex] = CRGB::Black;
+          }
+          else {
+            if (vu_level[logicDisplay-1][c] <= i) {
+              switch (i){
+                //case 5:
+                case 4:
+                case 3:
+                  front_leds[ledIndex] = 0x00ff00;
+                  break;
+                case 2:
+                  front_leds[ledIndex] = 0xffd700;
+                  break;
+                case 1: 
+                  front_leds[ledIndex] = 0xff8c00;
+                  break;
+                case 0: 
+                  front_leds[ledIndex] = 0xff0000;
+                  break;
+              }
+            }
+            else {
+              front_leds[ledIndex] = CRGB::Black;
+              DEBUG_PRINT("SETTING BLACK "); DEBUG_PRINT_LN(vu_level[logicDisplay-1][c]); 
+            }
+          }
+        }
+      }
+    }
+    
+    updateLed = 1;
+
+    // calc the next position of the bars
+    for (int y = 0; y < total_columns; y++)
+    {
+      byte upDown = random(0, 2);
+      byte changeSize = random(1, 2);
+      int newVal;
+
+      // Given the limited rows on the rear, always change by only one.
+      if (logicDisplay == RLD) changeSize = 1;
+      
+      // go up
+      if (upDown == 1)
+      {
+        ((vu_level[logicDisplay-1][y] + changeSize) <= 5) ? vu_level[logicDisplay-1][y] += changeSize : vu_level[logicDisplay-1][y] = 5;
+        //DEBUG_PRINT_LN(Updating Val);DEBUG_PRINT_LN(newVal);
+        
+        if (logicDisplay == RLD) {
+          newVal = vu_level[logicDisplay-1][y];
+          y++;
+          vu_level[logicDisplay-1][y] = newVal;
+          //if ((y ==  2) || (y ==  5) || (y ==  8) || (y == 11) ||
+          //    (y == 14) || (y == 17) || (y == 20) || (y == 23))
+          //  {
+          //    DEBUG_PRINT("Skipping Column UP: ");DEBUG_PRINT_LN(y);
+          //    // Skip a column to define the bars better ....
+          //    vu_level[logicDisplay-1][y] = 5;
+          //  }
+        }
+        
+      }
+      // go down
+      else
+      {
+        ((vu_level[logicDisplay-1][y] - changeSize) >= 0) ? vu_level[logicDisplay-1][y] -= changeSize : vu_level[logicDisplay-1][y] = 0;
+        if (logicDisplay == RLD) {
+          newVal = vu_level[logicDisplay-1][y];
+          y++;
+          vu_level[logicDisplay-1][y] = newVal;
+          // Try skipping colums to make the "bars" more obvious.
+          //if ((y ==  2) || (y ==  5) || (y ==  8) || (y == 11) ||
+          //    (y == 14) || (y == 17) || (y == 20) || (y == 23))
+          //  {
+          //    //DEBUG_PRINT("Skipping Column DOWN: ");DEBUG_PRINT_LN(y);
+          //    // Skip a column to define the bars better ....
+          //    vu_level[logicDisplay-1][y] = 5;
+          //  }
+        }
+        
+      }
+    }
+
+    globalPatternLoops[logicDisplay-1]--;
+  }
+
+
+  if (updateLed) {
+    updateDisplays();
+    set_delay(logicDisplay, time_delay);
+  }
+
+  if ((runtime == 0) && (!timingReceived)){
+    if (loops) {
+      // Check to see if we have run the loops needed for this pattern
+      loopsDonedoRestoreDefault(logicDisplay);
+    }
+  } else {
+    // Check for the global timeout to have expired.
+    globalTimerDonedoRestoreDefault(logicDisplay);
+  } 
+}
+
+
+void Cylon_Row(int logicDisplay, CRGB color, unsigned long time_delay, int type, int loops, unsigned long runtime)
+{
+
+  if (firstTime[logicDisplay-1]) {
+    DEBUG_PRINT("Cylon Row");
+    firstTime[logicDisplay-1] = false;
+    patternRunning[logicDisplay-1] = true;
+    if (loops != 0) globalPatternLoops[logicDisplay-1] = loops;
+    if ((runtime != 0) && (!timingReceived)) set_global_timeout(logicDisplay, runtime);
+    if (timingReceived) set_global_timeout(logicDisplay, commandTiming);
+  }
+
+  switch (type) {
+    case 1:
+      // Scan Down then Up ...
+      scanRowDownUp(logicDisplay, time_delay, 0, color, 0);
+      break;
+    case 2 :
+      // Scan Up then down
+      scanRowDownUp(logicDisplay, time_delay, 0, color, 1);
+      break;
+    case 3:
+      // Scan Down ...
+      //scanDown(time_delay, 0, color);
+      scanRow(logicDisplay, time_delay, 0, color, 0);
+      break;
+    case 4:
+      // Scan Up ...
+      //scanUp(time_delay, 0, color);
+      scanRow(logicDisplay, time_delay, 0, color, 1);
+      break;
+    default:
+      // do nothing
+      break;
+  }
+
+  if ((runtime == 0) && (!timingReceived)){
+    if (loops) {
+      // Check to see if we have run the loops needed for this pattern
+      loopsDonedoRestoreDefault(logicDisplay);
+    }
+  } else {
+    // Check for the global timeout to have expired.
+    globalTimerDonedoRestoreDefault(logicDisplay);
+  } 
 }
 
 ///
@@ -1230,9 +1915,6 @@ void loop() {
    
 }
 
-//char scrolly[] PROGMEM ={"0123456789 ABCDEFGHIJKLMNOPQRSTUVWXYZ  "};
-char scrolly[] PROGMEM ={"{|}"};
-
 // The following takes the Pattern code, and executes the relevant function
 // This allows i2c and serial inputs to use the same function to start patterns
 // so we avoid the need to duplicate this code.
@@ -1262,46 +1944,49 @@ void runPattern(int logicDisplay, int pattern) {
     case 0:
       allOFF(logicDisplay, true);
       break;
-    case 1:
+    case 1:             //  1 = Default Random Blinkies Pattern
       randomBlinkies(logicDisplay, 0);
       break;
-    case 2:
-      // Set display to Top front
-      //scrollMessage(scrolly, logicDisplay, 2, 0x0000ff);
-      if (firstTime[logicDisplay-1] == true) setText(logicDisplay, scrolly);
-      scrollMessage(logicText[logicDisplay-1], logicDisplay, 1, 0, 0x0000ff);
+    case 2:             //  2 = Flash Panel (4s)
+      // logicDisplay, time_delay, loops, color, runtime
+      Flash(logicDisplay, 60, 0, CRGB::Grey, 4);
       break;
-    case 3:
-      // Set display to Top front
-      //scrollMessage(scrolly, logicDisplay, 2, 0x0000ff);
-      setText(logicDisplay, scrolly);
-      scrollMessage(logicText[logicDisplay-1], logicDisplay, 1, 1, 0x0000ff);
+    case 3:             //  3 = Alarm (4s)
+      // logicDisplay, time_delay, loops, color, runtime
+      Flash(logicDisplay, 125, 0, CRGB::Grey, 4);
       break;
-    case 4:
+    case 4:             //  4 = Short circuit
+      FadeOut(logicDisplay, 257, 3);
+      break;
+    case 40:
       // Random blinkies with colorshifts
       randomBlinkies(logicDisplay, 2);
       break;
-    case 5:
-      // FONT TESTER ....
-      // Stagger by one "pixel" each row ... 
-      //SetRow(RLD, 0, B01101000, 0, 0x00ff00); //B01101000, B10110000, B00000000, B00000000,
-      //SetRow(RLD, 1,  B10110000, 0, 0x00ff00);
-      //SetRow(RLD, 2,   B00000000, 0, 0x00ff00);
-      //SetRow(RLD, 3,    B00000000, 0, 0x00ff00);
-      SetRow(RLD, 0,    B11010000, 1, 0x00ff00); //B01101000, B10110000, B00000000, B00000000
-      SetRow(RLD, 1,   B10110000, 1, 0x00ff00);
-      SetRow(RLD, 2,  B00000000, 1, 0x00ff00);
-      SetRow(RLD, 3, B00000000, 1, 0x00ff00);
+    case 5:             //  5 = Scream - Note this is the same as Alarm currently! (4s)
+      // logicDisplay, time_delay, loops, color, runtime
+      Flash(logicDisplay, 125, 0, CRGB::Grey, 4);
       break;
-    case 11:
-      //void march(int logicDisplay, CRGB color, unsigned long time_delay, int loops, unsigned long runtime) //47 seconds Command 0T11
-      march(logicDisplay, 0xcccccc, 552, 0, 47);
+    case 6:             //  6 = Leia message (34s)
+      //logicDisplay, color, time_delay, type, loops, runtime
+      Cylon_Row(logicDisplay, 0xcccccc, 120, 3, 0, 34);
       break;
-    case 12:
-      //void march(int logicDisplay, CRGB color, unsigned long time_delay, int loops, unsigned long runtime) //47 seconds Command 0T11
-      nmarch(logicDisplay, 0xcccccc, 552, 0, 47);
-      break;      
-    case 100:
+    case 11:            // 11 = March 47 seconds.
+      March(logicDisplay, 0xcccccc, 552, 0, 47);
+      break;
+    case 12:            // 12 = Disco Ball 4 seconds
+      DiscoBall(logicDisplay, 150, 0, 3, CRGB::Grey, 4, 0);
+      break;  
+    case 13:            // 13 = Disco Ball On Indefinitely
+      DiscoBall(logicDisplay, 150, 0, 3, CRGB::Grey, 0, 0);
+      break;     
+    case 21:            // 21 = VU Meter (4 seconds).
+      // Set loops to 0 to remain on indefinately.
+      VUMeter(logicDisplay, 250, 0, 4);
+      break;
+    case 92:            // 92 = VU Meter (On Indefinately).
+      // Set loops to 0 to remain on indefinately.
+      VUMeter(logicDisplay, 250, 0, 0);      
+    case 100:           //100 = Scroll Text (set by M command)
       // Set display to Top front
       scrollMessage(logicText[logicDisplay-1], logicDisplay, 1, 0, 0x0000ff);
       break;      
@@ -1375,6 +2060,8 @@ void serialEventRun(void)
   if (debugSerialPort->available()) debugSerialEvent();
 }
 
+// Again this is needed for the Teensy to be able to receive commands
+// The Reactor does not need this.
 void serialEvent() {
   debugSerialEvent();
 }
@@ -1691,16 +2378,26 @@ void doCcommand(int address, int argument)
 // Parameter handling for PSI settings
 void doPcommand(int address, int argument)
 {
-  /*
+  
   DEBUG_PRINT_LN();
   DEBUG_PRINT("Command: P ");
   DEBUG_PRINT("Address: ");
   DEBUG_PRINT(address);
   DEBUG_PRINT(" Argument: ");
   DEBUG_PRINT_LN(argument);  
-  */
-  switch(address)
+  
+  switch(argument)
   {
+    case 60:
+      DEBUG_PRINT_LN("Select English");
+      if(address==0) {//alphabetType[0]=alphabetType[1]=alphabetType[2]=LATIN;
+        }
+      break;
+    case 61:    // Aurabesh
+      DEBUG_PRINT_LN("Select Aurebesh");
+      if(address==0) {//alphabetType[0]=alphabetType[1]=alphabetType[2]=AURABESH;
+        }
+      break;
     default:
       break;
   }  
