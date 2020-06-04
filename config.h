@@ -72,10 +72,26 @@ uint8_t defaultPattern = 1; //Mode 1 is Random Blinkies
   #define FRONT_PIN 21
   #define REAR_PIN 22
   #define STATUSLED_PIN 10
+  // POT and SWITCH PINS ....
+  #define delayPin A1 //15analog pin to read keyPause value
+  #define fadePin A2 //16analog pin to read tweenPause value
+  #define briPin A3 //17analog pin to read Brightness value
+  #define huePin A6 //20analog pin to read Color/Hue shift value
+  #define FADJ_PIN 0  //front adjust jumper
+  #define RADJ_PIN 1  //rear adjust jumper
+  #define PAL_PIN 2  //pin used to switch palettes in ADJ mode
 #elif defined(__SAMD21G18A__)
   #define FRONT_PIN 5
   #define REAR_PIN 3
   #define STATUSLED_PIN 8
+  // POT and SWITCH PINS ....
+  #define delayPin A0
+  #define fadePin A1
+  #define briPin A2
+  #define huePin A3
+  #define FADJ_PIN 2
+  #define RADJ_PIN 4
+  #define PAL_PIN 9  
 #else
   // No Board settings known for LED pins ... I'm going to barf this!
   #error UNRECOGNIZED PINOUT.  Sorry.
@@ -86,6 +102,7 @@ uint8_t defaultPattern = 1; //Mode 1 is Random Blinkies
 #define FRONT_ALL_ROW (FRONT_ROW * 2)
 #define REAR_COL 24
 #define REAR_ROW 4
+
 
 ///
 // Palette and stuff config
@@ -114,10 +131,28 @@ DEFINE_GRADIENT_PALETTE( rear_gp2 ) {
 210,   180, 255, 1,   //yellow green
 255,   0,    0,    0};  //black
 
+DEFINE_GRADIENT_PALETTE( front_purple_gp ) {
+  0,   0,     0,   0,   //black
+110,   100,     0, 255,   //blue
+170,   50,     0, 200,   //blue, marginally less bright (used to reduce the total amount of "white"
+230,   255, 255, 255,   //white
+255,   0,    0,    0 }; //black
+
 CRGBPalette16 frontTargetPalette( front_gp);
 CRGBPalette16 frontCurrentPalette( front_gp);
 CRGBPalette16 rearCurrentPalette( rear_gp);
 CRGBPalette16 rearTargetPalette( rear_gp);
+
+// Defines the Palette sets.  Each set has 3 gradients, Front Top, Front Bottom and Rear.
+#define MAX_PAL 2
+
+CRGBPalette16 paletteArray[MAX_PAL][3] = {
+    {front_gp, front_gp, rear_gp},
+    {front_purple_gp, front_purple_gp, front_gp},
+  };
+
+// Used to track the current palette selected.
+uint8_t currentPalette[3] = {0,0,0};
 
 #define UPDATES_PER_SECOND 50 // The bigger this number the faster the blinkies blink.  Value between 1 and 200
 #define FRONT_COLOR_STEP 6  // Playing with this really changes how the blinkies look, smaller is "smoother"
@@ -347,3 +382,27 @@ char cmdString[CMD_MAX_LENGTH];
 ////////////////////////////
 
 bool startup = true;
+
+////////////////////////////////
+///////////////////////////////
+//  Adjustment Mode stuff   //
+/////////////////////////////
+////////////////////////////
+
+#define MAX_FADE 15
+#define MAX_DELAY 500
+#define MIN_DELAY 10
+#define MIN_BRI 10
+
+unsigned int palPinLoops; //used to count how long the Pallet button is held
+bool palPinStatus = 1;
+bool prevPalPinStatus = 1;
+byte adjMode, prevAdjMode, startAdjMode;
+unsigned int adjLoops;
+#define adjLoopMax 90000 //if we're left in Adjust mode for this many loops, we go back to normal mode
+#define adjLoopMin 500   //if we just came from Adjust mode, but were only there momentarily, we don't save changes
+int startTrimpots[4]; //will hold trimpot values when adjustments start being made
+bool trimEnabled[4]; //during adjustment, if trimpot has moved beyond specified threshold it will be enabled here
+int loopTrimpots[4]; //will hold trimpot values when adjustments start being made
+bool adjEnabled[4]; //tells us if a trimpot has been adjusted beyond adj_threshold
+byte adjThreshold = 5;

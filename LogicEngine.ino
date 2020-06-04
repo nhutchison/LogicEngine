@@ -111,6 +111,8 @@
 
 // Local .h files in the same directory as the main sketch
 #include "config.h"
+// Settings and "EEPROM" functions
+#include "functions.h"
 // font files for front and rear logics.
 #include "fld_font.h"
 #include "rld_font.h"
@@ -294,6 +296,12 @@ void setup() {
   for( int i = 0; i < NUM_REAR_LEDS; i++) {
     rearColorIndex[i] = random(255);
   }
+
+  // Set the various PIN modes for the POT's and switch control
+  pinMode(FADJ_PIN, INPUT_PULLUP); //use internal pullup resistors of Teensy
+  pinMode(RADJ_PIN, INPUT_PULLUP);
+  if (digitalRead(RADJ_PIN) == 0 or digitalRead(FADJ_PIN) == 0) startAdjMode = 1; //adj switch isn't centered!
+  pinMode(PAL_PIN, INPUT_PULLUP);  
 
   // Setup Status LED
   statusLED[0] = 0x008800;
@@ -1852,7 +1860,7 @@ void loop() {
     previousMillis = currentMillis;
 
     if (startup) {
-      for (int i=0;i<4;i++){
+      for (int i=1;i<4;i++){
         runPattern(i,100);
       }
       startup = false; 
@@ -1890,6 +1898,10 @@ void loop() {
 #endif // (TEECESPSI>0)
 
   }  
+
+  // Check the POT's and Switch setup ...
+  checkAdjSwitch();
+  checkPalButton();
 
   // Status LED Stuff.
   if (currentMillis - prevFlipFlopMillis >= statusFlipFlopTime) {
@@ -1988,28 +2000,6 @@ void runPattern(int logicDisplay, int pattern) {
       firstTime[logicDisplay-1] = false;
       break;
   }
- 
-/*
-    // Display new pixel
-    //front_leds[front_cnt] = CHSV( hue,187,255);
-    fill_row_front(front_cnt, CHSV( hue,187,255));
-    //rear_leds[rear_cnt] = CHSV( hue,187,255);
-    fill_row_rear(rear_cnt, CHSV( hue,187,255));
-
-    // Update color
-    hue++;
-    hue %= 255;
-    updateDisplays();
-    // Pause
-    FastLED.delay(100);
-    
-    // Clear and setup for the next loop.
-    fill_row_front(front_cnt, CRGB::Black);
-    fill_row_rear(rear_cnt, CRGB::Black);
-    front_cnt++; front_cnt %= FRONT_ROW * 2;
-    rear_cnt++; rear_cnt %= REAR_ROW;
- */
-
 }
 
 
@@ -2048,7 +2038,7 @@ void receiveEvent(int eventCode) {
 */
 void serialEventRun(void)
 {
-  //if (serialPort->available()) serialEvent();
+  if (serialPort->available()) serialEvent();
   if (debugSerialPort->available()) debugSerialEvent();
 }
 
