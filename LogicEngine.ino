@@ -1576,14 +1576,11 @@ void setText(int logicDisplay, const char* message)
 //                        3 - Rear
 void scrollMessage(char messageString[], int logicDisplay, int font, int italic_slant, CRGB color) {
 
-  if (logicDisplay == 0)
-  {
-    DEBUG_PRINT_LN("ADD ALL HANDLING");
-    return;
-  }
-
   // setup first time stuff
   if (firstTime[logicDisplay-1]) {
+    if (font == LATIN) DEBUG_PRINT_LN("Scroll Message in English");
+    else if (font == AURABESH) DEBUG_PRINT_LN("Scroll Message in Aurabesh");
+    else DEBUG_PRINT_LN("Scroll Message in Unknown language");
     firstTime[logicDisplay-1] = false;
     patternRunning[logicDisplay-1] = true;
 
@@ -1989,7 +1986,11 @@ void runPattern(int logicDisplay, int pattern) {
       break;
     case 92:            // 92 = VU Meter (On Indefinately).
       // Set loops to 0 to remain on indefinately.
-      VUMeter(logicDisplay, 250, 0, 0);      
+      VUMeter(logicDisplay, 250, 0, 0);  
+    case 99:           //100 = Scroll Text (set by M command)
+      //messageString[], logicDisplay, font, italic_slant, color) {
+      scrollMessage(logicText[logicDisplay-1], logicDisplay, 2, 1, fontColor[logicDisplay-1]);
+      break;           
     case 100:           //100 = Scroll Text (set by M command)
       //messageString[], logicDisplay, font, italic_slant, color) {
       scrollMessage(logicText[logicDisplay-1], logicDisplay, alphabetType[logicDisplay-1], 1, fontColor[logicDisplay-1]);
@@ -2381,19 +2382,17 @@ void doPcommand(int address, int argument)
   {
     case 60:
       DEBUG_PRINT_LN("Select English");
-      if(address==0) {alphabetType[0]=alphabetType[1]=alphabetType[2]=LATIN;
+      if(address==0) {alphabetType[0]=alphabetType[1]=alphabetType[2]=LATIN;}
       if(address==1) {alphabetType[0]=LATIN;}
       if(address==2) {alphabetType[1]=LATIN;}
       if(address==3) {alphabetType[2]=LATIN;}
-        }
       break;
     case 61:    // Aurabesh
       DEBUG_PRINT_LN("Select Aurebesh");
-      if(address==0) {alphabetType[0]=alphabetType[1]=alphabetType[2]=AURABESH;
-      if(address==1) {alphabetType[0]=AURABESH;}
-      if(address==2) {alphabetType[1]=AURABESH;}
-      if(address==3) {alphabetType[2]=AURABESH;}
-        }
+      if(address==0) alphabetType[0]=alphabetType[1]=alphabetType[2]=AURABESH;
+      if(address==1) alphabetType[0]=AURABESH;
+      if(address==2) alphabetType[1]=AURABESH;
+      if(address==3) alphabetType[2]=AURABESH;
       break;
     default:
       break;

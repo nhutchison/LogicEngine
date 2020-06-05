@@ -368,7 +368,7 @@ uint8_t rearVULedMatrixRight[REAR_COL+2][REAR_ROW] = {
 
 unsigned long scrollDelay[3] = {75,75,75};   // adjust scrolling speed
 unsigned long bufferLong [3][10] = {0,0,0};
-byte alphabetType[3] = {LATIN,LATIN,LATIN}; // Stores the font for either English or Aurebesh
+uint8_t alphabetType[3] = {LATIN,LATIN,LATIN}; // Stores the font for either English or Aurebesh
 unsigned long fontColor[3] = {0x0000ff,0x0000ff,0x00ff00}; // Stores the font color for each display.
 
 // On the front Logics, we can use the standarc char buffer as it's 8 wide, the rear however
