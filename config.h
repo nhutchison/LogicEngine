@@ -133,9 +133,38 @@ DEFINE_GRADIENT_PALETTE( rear_gp2 ) {
 
 DEFINE_GRADIENT_PALETTE( front_purple_gp ) {
   0,   0,     0,   0,   //black
-110,   100,     0, 255,   //blue
-170,   50,     0, 200,   //blue, marginally less bright (used to reduce the total amount of "white"
+110,   100,     0, 255,   //purple
+170,   50,     0, 200,   //purple, marginally less bright (used to reduce the total amount of "white"
 230,   255, 255, 255,   //white
+255,   0,    0,    0 }; //black
+
+DEFINE_GRADIENT_PALETTE( front_red_gp ) {
+  0,   0,     0,   0,   //black
+110,   255,     0, 10,   //red
+170,   230,     0, 10,   //red, marginally less bright (used to reduce the total amount of "white"
+230,   255, 50, 50,   //pinkish
+255,   0,    0,    0 }; //black
+
+DEFINE_GRADIENT_PALETTE( front_orange_gp ) {
+  0,   0,     0,   0,   //black
+110,   246,     172, 0,   //orange
+150,   180,     255, 0,   //orange, marginally less bright (used to reduce the total amount of "white"
+200,   180, 180, 180,   //greyish
+230,  200, 0, 0,      // red
+255,   0,    0,    0 }; //black
+
+DEFINE_GRADIENT_PALETTE( front_green_gp ) {
+  0,   0,     0,   0,   //black
+110,   27,     150, 18,   //green
+170,   64,     235, 94,   //green, marginally less bright (used to reduce the total amount of "white"
+230,   52, 255, 52,   //cyan
+255,   0,    0,    0 }; //black
+
+DEFINE_GRADIENT_PALETTE( front_cyan_gp ) {
+  0,   0,     0,   0,   //black
+110,   52,     235, 155,   //blue
+170,   155,     235, 52,   //blue, marginally less bright (used to reduce the total amount of "white"
+230,   52, 235, 225,   //cyan
 255,   0,    0,    0 }; //black
 
 CRGBPalette16 frontTargetPalette( front_gp);
@@ -144,11 +173,15 @@ CRGBPalette16 rearCurrentPalette( rear_gp);
 CRGBPalette16 rearTargetPalette( rear_gp);
 
 // Defines the Palette sets.  Each set has 3 gradients, Front Top, Front Bottom and Rear.
-#define MAX_PAL 2
+#define MAX_PAL 6
 
 CRGBPalette16 paletteArray[MAX_PAL][3] = {
     {front_gp, front_gp, rear_gp},
     {front_purple_gp, front_purple_gp, front_gp},
+    {front_red_gp, front_red_gp, rear_gp},
+    {front_orange_gp, front_orange_gp, rear_gp},
+    {front_green_gp, front_green_gp, rear_gp},
+    {front_cyan_gp, front_cyan_gp, rear_gp},
   };
 
 // Used to track the current palette selected.
