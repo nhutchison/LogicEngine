@@ -1,3 +1,23 @@
+// Globals that we need for the Status LED, etc
+
+///
+// status LED related...
+///
+bool statusFlipFlop=0;
+bool prevStatusFlipFlop=1;
+#define slowBlink 2000 //number of millis between Status LED changes in normal mode
+#define fastBlink 100  //number of millis between Status LED changes in Adjust mode
+unsigned long prevFlipFlopMillis = 0;
+int statusFlipFlopTime = slowBlink;
+// Prevent updates to the LED's when getting data on serial
+bool dataRcvInProgress = false;
+
+
+////
+// Function Prototypes
+////
+void setStatusLED(uint8_t mode=0, unsigned long delay=250, uint8_t loops=2);
+
 
 //TODO
 void checkTrimpots(bool startTrim = 0) {
@@ -20,7 +40,7 @@ void checkTrimpots(bool startTrim = 0) {
 
 //TODO
 void compareTrimpots(byte adjMode = 0) {
-  /*
+  
   checkTrimpots();
   for (byte x = 0; x < 4; x++) {
     if ( x > 1 && adjEnabled[x] == 0 && ( startTrimpots[x] - loopTrimpots[x] > adjThreshold || loopTrimpots[x] - startTrimpots[x] > adjThreshold )  ) { //compare Brightness and Hue using adjThreshold, as changes there can be a lot of work
@@ -42,33 +62,50 @@ void compareTrimpots(byte adjMode = 0) {
         //adjustment is enabled for this pot, if settings have changed see if we need to recalc colors and all that jazz
         if (adjMode == 1) {
             //FRONT ADJUSTMENTS...
-            if (x == 0) mySettings.frontDelay = loopTrimpots[x];
-            else if (x == 1) mySettings.frontFade = loopTrimpots[x];
+            if (x == 0) {
+              DEBUG_PRINT_LN("Front Delay Changed");
+              //mySettings.frontDelay = loopTrimpots[x];
+            }
+            else if (x == 1) 
+            {
+              DEBUG_PRINT_LN("Front Fade Changed");
+              //mySettings.frontFade = loopTrimpots[x];
+            }
             else if (x == 2) {
+              DEBUG_PRINT_LN("Front Brightness Changed");
               //map(hsvColor[2],0,255,0,byte(float(mySettings.maxBri)/255*mySettings.frontBri) )
               //mySettings.frontBri = map(loopTrimpots[x], 0, 1023, 0, 255); //if loopTrimpots were int's
-              mySettings.frontBri = loopTrimpots[x];
-              calcColors(mySettings.frontPalNum, 0);
+              //mySettings.frontBri = loopTrimpots[x];
+              //calcColors(mySettings.frontPalNum, 0);
             }
             else if (x == 3) {
+              DEBUG_PRINT_LN("Front Palette Changed");
               //mySettings.frontHue = map(loopTrimpots[x], 0, 1023, 0, 255); //if loopTrimpots were int's
-              mySettings.frontHue = loopTrimpots[x];
-              calcColors(mySettings.frontPalNum, 0);
+              //mySettings.frontHue = loopTrimpots[x];
+              //calcColors(mySettings.frontPalNum, 0);
             }
         }
         if (adjMode == 3) {
-            if (x == 0) mySettings.rearDelay = loopTrimpots[x];
-            else if (x == 1) mySettings.rearFade = loopTrimpots[x];
+            if (x == 0) {
+              DEBUG_PRINT_LN("Rear Delay Changed");
+              //mySettings.rearDelay = loopTrimpots[x];
+            }
+            else if (x == 1) {
+              DEBUG_PRINT_LN("Rear Fade Changed");
+              //mySettings.rearFade = loopTrimpots[x];
+            }
             else if (x == 2) {
+              DEBUG_PRINT_LN("Rear Brightness Changed");
               //map(hsvColor[2],0,255,0,byte(float(mySettings.maxBri)/255*mySettings.frontBri) )
               //mySettings.frontBri = map(loopTrimpots[x], 0, 1023, 0, 255); //if loopTrimpots were int's
-              mySettings.rearBri = loopTrimpots[x];
-              calcColors(mySettings.rearPalNum, 1);
+              //mySettings.rearBri = loopTrimpots[x];
+              //calcColors(mySettings.rearPalNum, 1);
             }
             else if (x == 3) {
+              DEBUG_PRINT_LN("Rear Palette Changed");
               //mySettings.frontHue = map(loopTrimpots[x], 0, 1023, 0, 255); //if loopTrimpots were int's
-              mySettings.rearHue = loopTrimpots[x];
-              calcColors(mySettings.rearPalNum, 1);
+              //mySettings.rearHue = loopTrimpots[x];
+              //calcColors(mySettings.rearPalNum, 1);
             }
         }
       }
@@ -76,7 +113,7 @@ void compareTrimpots(byte adjMode = 0) {
       startTrimpots[x] = loopTrimpots[x];
     }
   }
-  */
+  
 }
 
 // TODO
@@ -84,9 +121,11 @@ void saveSettings() {
   //my_flash_store.write(mySettings); //////////////////////////////////////////////////////////////// TODO: make compatible with standard Arduino EEPROM
 }
 
-//TODO
+//TODO - This code from Paul seems unreliable.
+// The state stracking isn't right such that if you set the switch to "front" then center, then front, 
+// it doesn't go back into fast blinky mode.  Need to look at this more closely.
 void checkAdjSwitch() {
-  /*
+  
   if (digitalRead(FADJ_PIN) == 0 && prevAdjMode != 1 && startAdjMode == 0) {
     adjMode = 1;
     checkTrimpots(1); //put initial trimpot values into startTrimpots[]
@@ -109,11 +148,13 @@ void checkAdjSwitch() {
   }
   else if ( (prevAdjMode != 0 && digitalRead(RADJ_PIN) == 1 && digitalRead(FADJ_PIN) == 1 && startAdjMode == 0) || (adjLoops>adjLoopMax) ) {
 
-        if (adjLoops>adjLoopMax) DEBUG_PRINT_LN("MAXED OUT"); 
+      if (adjLoops>adjLoopMax) DEBUG_PRINT_LN("MAXED OUT"); 
+      statusFlipFlopTime = slowBlink; 
 
       //if we were in previous adjMode for way too long, save settings here  SAVE STUFF HERE and go back to regular mode!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       if (adjLoops > adjLoopMin)  {
 
+        /*
         DEBUG_PRINT_LN("save");
         DEBUG_PRINT_LN("FDelay ");
         DEBUG_PRINT_LN(mySettings.frontDelay);
@@ -128,25 +169,27 @@ void checkAdjSwitch() {
 
         mySettings.writes++;
         saveSettings();
+        */
         if (adjLoops>adjLoopMax) {
           startAdjMode=adjMode;
           adjLoops=0;
         }
         adjMode = 0;
-        for (byte x = 0; x < 4; x++) adjEnabled[x] = 0; //
-        statusFlipFlopTime = slowBlink;            
+        for (byte x = 0; x < 4; x++) adjEnabled[x] = 0; //           
       }
   }
   else if (digitalRead(RADJ_PIN) == 1 && digitalRead(FADJ_PIN) == 1 && startAdjMode != 0) {
     //adjMode didn't start off centered, which could have messed us up.
     //now it is centered though, so let's get back to our normal state.
     startAdjMode = 0;
+    statusFlipFlopTime = slowBlink; 
   }
   if (adjMode != prevAdjMode) {
-    statusBlink(2, 250, 1, 0, 2); //blink purple 2 times
+    //statusBlink(2, 250, 1, 0, 2); //blink purple 2 times
+    setStatusLED(1,250,2);
   }
   prevAdjMode = adjMode;
-  */
+  
 }
 
 int checkPalButton() {

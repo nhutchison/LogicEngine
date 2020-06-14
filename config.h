@@ -131,21 +131,21 @@ DEFINE_GRADIENT_PALETTE( rear_gp2 ) {
 210,   180, 255, 1,   //yellow green
 255,   0,    0,    0};  //black
 
-DEFINE_GRADIENT_PALETTE( front_purple_gp ) {
+DEFINE_GRADIENT_PALETTE( purple_gp ) {
   0,   0,     0,   0,   //black
 110,   100,     0, 255,   //purple
 170,   50,     0, 200,   //purple, marginally less bright (used to reduce the total amount of "white"
 230,   255, 255, 255,   //white
 255,   0,    0,    0 }; //black
 
-DEFINE_GRADIENT_PALETTE( front_red_gp ) {
+DEFINE_GRADIENT_PALETTE( red_gp ) {
   0,   0,     0,   0,   //black
 110,   255,     0, 10,   //red
 170,   230,     0, 10,   //red, marginally less bright (used to reduce the total amount of "white"
 230,   255, 50, 50,   //pinkish
 255,   0,    0,    0 }; //black
 
-DEFINE_GRADIENT_PALETTE( front_orange_gp ) {
+DEFINE_GRADIENT_PALETTE( orange_gp ) {
   0,   0,     0,   0,   //black
 110,   246,     172, 0,   //orange
 150,   180,     255, 0,   //orange, marginally less bright (used to reduce the total amount of "white"
@@ -153,14 +153,14 @@ DEFINE_GRADIENT_PALETTE( front_orange_gp ) {
 230,  200, 0, 0,      // red
 255,   0,    0,    0 }; //black
 
-DEFINE_GRADIENT_PALETTE( front_green_gp ) {
+DEFINE_GRADIENT_PALETTE( green_gp ) {
   0,   0,     0,   0,   //black
 110,   27,     150, 18,   //green
 170,   64,     235, 94,   //green, marginally less bright (used to reduce the total amount of "white"
 230,   52, 255, 52,   //cyan
 255,   0,    0,    0 }; //black
 
-DEFINE_GRADIENT_PALETTE( front_cyan_gp ) {
+DEFINE_GRADIENT_PALETTE( cyan_gp ) {
   0,   0,     0,   0,   //black
 110,   52,     235, 155,   //blue
 170,   155,     235, 52,   //blue, marginally less bright (used to reduce the total amount of "white"
@@ -177,11 +177,11 @@ CRGBPalette16 rearTargetPalette( rear_gp);
 
 CRGBPalette16 paletteArray[MAX_PAL][3] = {
     {front_gp, front_gp, rear_gp},
-    {front_purple_gp, front_purple_gp, front_gp},
-    {front_red_gp, front_red_gp, rear_gp},
-    {front_orange_gp, front_orange_gp, rear_gp},
-    {front_green_gp, front_green_gp, rear_gp},
-    {front_cyan_gp, front_cyan_gp, rear_gp},
+    {purple_gp, purple_gp, front_gp},
+    {red_gp, red_gp, purple_gp},
+    {orange_gp, orange_gp, red_gp},
+    {green_gp, green_gp, rear_gp2},
+    {cyan_gp, cyan_gp, green_gp},
   };
 
 // Used to track the current palette selected.
@@ -422,16 +422,20 @@ bool startup = true;
 /////////////////////////////
 ////////////////////////////
 
+//NOTE: Anything less than 25 and this LEF will flicker like crazy!
+uint8_t STATUS_BRIGHTNESS=25; // set as uint8_t so it can be changed in code realtime
+#define MIN_STATUS_BRIGHTNESS 25
+
 #define MAX_FADE 15
 #define MAX_DELAY 500
 #define MIN_DELAY 10
 #define MIN_BRI 10
 
-unsigned int palPinLoops; //used to count how long the Pallet button is held
+uint8_t palPinLoops; //used to count how long the Pallet button is held
 bool palPinStatus = 1;
 bool prevPalPinStatus = 1;
 byte adjMode, prevAdjMode, startAdjMode;
-unsigned int adjLoops;
+uint8_t adjLoops;
 #define adjLoopMax 90000 //if we're left in Adjust mode for this many loops, we go back to normal mode
 #define adjLoopMin 500   //if we just came from Adjust mode, but were only there momentarily, we don't save changes
 int startTrimpots[4]; //will hold trimpot values when adjustments start being made

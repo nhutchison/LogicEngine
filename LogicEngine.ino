@@ -139,7 +139,9 @@
 ///
 CRGB front_leds[NUM_FRONT_LEDS];
 CRGB rear_leds[NUM_REAR_LEDS];
-CRGB statusLED[1];
+// We call this with CHSV values, but it needs to be defined as CRGB ...
+// CRGB will take CHSV values, so it's not a problem, just strange.
+CRGB statusLED[1]; 
 
 ////////////////////////
 //Teeces PSI's...
@@ -155,18 +157,6 @@ CRGB statusLED[1];
 #endif
 
 ///
-// status LED related...
-///
-bool statusFlipFlop=0;
-bool prevStatusFlipFlop=1;
-#define slowBlink 2000 //number of millis between Status LED changes in normal mode
-#define fastBlink 100  //number of millis between Status LED changes in Adjust mode
-unsigned long prevFlipFlopMillis = 0;
-int statusFlipFlopTime = slowBlink;
-// Prevent updates to the LED's when getting data on serial
-bool dataRcvInProgress = false;
-
-///
 // Command loop processing times
 ///
 unsigned long previousMillis = 0;
@@ -177,10 +167,19 @@ unsigned long interval = 5;  // Limits us to 200 updates per second.
 ///
 bool firstTime[3];
 bool patternRunning[3] = {false, false, false};
-int lastEventCode[3] = {defaultPattern, defaultPattern, defaultPattern};
+uint8_t lastEventCode[3] = {defaultPattern, defaultPattern, defaultPattern};
 uint8_t globalPatternLoops[3];
 uint8_t ledPatternState[3];
 int updateLed = 0;
+
+// LED State
+bool firstTimeLED = false;
+bool ledPatternRunning = false;
+uint8_t ledPattern = 0;
+uint8_t lastLEDEvent = 0;
+uint8_t ledLoops = 0;
+uint8_t ledEndLoops = 0;
+unsigned long statusTimer;
 
 // Timing values received from command are stored here.
 bool timingReceived = false;
@@ -304,8 +303,7 @@ void setup() {
   pinMode(PAL_PIN, INPUT_PULLUP);  
 
   // Setup Status LED
-  statusLED[0] = 0x008800;
-  statusLED[0] %= 20;
+  statusLED[0] = CHSV(240,100,STATUS_BRIGHTNESS);
   updateDisplays();
 }
 
@@ -322,14 +320,71 @@ void updateDisplays(){
 
 // This will toggle the Status LED colors on the control board.
 // Happy blinky light.
-void setStatusLED() {
-    if (statusFlipFlop == 0) {
-      statusLED[0] = 0x000088;
+void setStatusLED(uint8_t mode, unsigned long delay, uint8_t loops) {
+
+  if (ledPattern != mode)
+  {
+    ledPattern = mode;
+    firstTimeLED = true;
+    DEBUG_PRINT("Start LED Pattern "); DEBUG_PRINT_LN(mode);
+  }
+  else
+  {
+    firstTimeLED = false;
+  }
+
+    
+    if (firstTimeLED)
+    {
+      DEBUG_PRINT_LN("Setting Happy Blinky Mode");
+      firstTimeLED = false;
+      ledPatternRunning = true;
+      ledLoops = 0;
+      ledEndLoops = loops;
     }
-    else {
-      statusLED[0] = 0x008800;
+    
+
+    switch(mode) {
+      case 0:
+        if (statusFlipFlop == 0) {
+          statusLED[0] = CHSV(96,255,STATUS_BRIGHTNESS);
+        }
+        else {
+          statusLED[0] = CHSV(0,255,STATUS_BRIGHTNESS);
+        }
+        break;
+      case 1:
+        int state = ledLoops % 2;
+        DEBUG_PRINT_LN(state);
+        
+        if (checkStatusDelay()) {
+          switch (state) {
+            case 0: {
+                // Purple
+                statusLED[0] = CHSV(200,255,STATUS_BRIGHTNESS);
+                setStatusDelay(delay);
+                break;
+              }
+            case 1: {
+                // Off
+                statusLED[0] = CHSV(200,0,STATUS_BRIGHTNESS);
+                setStatusDelay(delay);
+                break;
+              }
+              default:
+                break;
+          }
+      }
+      break;   
     }
-    statusLED[0] %= 20;
+
+  if ((ledPatternRunning) && (ledLoops == ledEndLoops)) {
+    // End the pattern and reset.
+    ledPatternRunning = false;
+    ledPattern = 0; // reset to default pattern
+    statusFlipFlopTime = slowBlink;
+  }
+
 }
 
 void allOFF(int logicDisplay, bool showLED, CRGB color=0x000000, unsigned long runtime=0)
@@ -774,6 +829,23 @@ bool checkDelay(int logicDisplay)
 {
   bool timerExpired = false;
   if (millis() >= doNext[logicDisplay-1]) timerExpired = true;
+  return timerExpired;
+}
+
+//This is the non-blocking delay function
+// When called it sets some global variables to allow checking of timer exipration
+// To check if the timer has expired, call checkDelay()
+void setStatusDelay(unsigned long timeout)
+{
+  statusTimer = millis() + timeout;
+  //DEBUG_PRINT("Set delay to "); DEBUG_PRINT_LN(doNext[logicDisplay]);
+}
+
+// Call this to see if the timer for set_delay() has expired
+bool checkStatusDelay()
+{
+  bool timerExpired = false;
+  if (millis() >= statusTimer) timerExpired = true;
   return timerExpired;
 }
 
