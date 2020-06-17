@@ -429,7 +429,14 @@ uint8_t STATUS_BRIGHTNESS=25; // set as uint8_t so it can be changed in code rea
 #define MAX_FADE 15
 #define MAX_DELAY 500
 #define MIN_DELAY 10
-#define MIN_BRI 10
+#define MIN_BRI 5
+#define MAX_BRI 50 // Use this to control the max allowed.
+
+// Brightness control
+bool internalBrightness = false;
+bool useTempInternalBrightness = false;
+uint8_t globalBrightnessValue = 10; 
+uint8_t tempGlobalBrightnessValue = 10;
 
 uint8_t palPinLoops; //used to count how long the Pallet button is held
 bool palPinStatus = 1;
@@ -442,4 +449,4 @@ int startTrimpots[4]; //will hold trimpot values when adjustments start being ma
 bool trimEnabled[4]; //during adjustment, if trimpot has moved beyond specified threshold it will be enabled here
 int loopTrimpots[4]; //will hold trimpot values when adjustments start being made
 bool adjEnabled[4]; //tells us if a trimpot has been adjusted beyond adj_threshold
-byte adjThreshold = 5;
+byte adjThreshold = 3; // default of 5

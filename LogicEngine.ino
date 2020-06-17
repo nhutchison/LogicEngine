@@ -315,7 +315,7 @@ void setup() {
 // When updating the LED's, the interrupts are disabled which can
 // cause issues with Serial / i2c command handling
 void updateDisplays(){
-  if (!dataRcvInProgress) FastLED.show();
+  if (!dataRcvInProgress) FastLED.show(brightness());
 }
 
 // This will toggle the Status LED colors on the control board.
@@ -1971,6 +1971,8 @@ void loop() {
   // Check the POT's and Switch setup ...
   checkAdjSwitch();
   checkPalButton();
+
+  compareTrimpots();
 
   // Status LED Stuff.
   if (currentMillis - prevFlipFlopMillis >= statusFlipFlopTime) {

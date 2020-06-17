@@ -18,32 +18,46 @@ bool dataRcvInProgress = false;
 ////
 void setStatusLED(uint8_t mode=0, unsigned long delay=250, uint8_t loops=2);
 
+// Brightness control
+// This is where we'll read from the pot, etc
+uint8_t brightness() {
+  //LED brightness is capped at 200 (out of 255) to reduce heat and extend life of LEDs. 
+  if (useTempInternalBrightness) return tempGlobalBrightnessValue;
+  else if (internalBrightness) return globalBrightnessValue;
+  else return loopTrimpots[2];
+}
+
 
 //TODO
 void checkTrimpots(bool startTrim = 0) {
-  /*
+  
   //check the current trimpot values and put them into startTrimpots[] or loopTrimpots[]
+  //DEBUG_PRINT("StartTrim ");DEBUG_PRINT_LN(startTrim);
   if (startTrim == 0) {
     loopTrimpots[0] = map(analogRead(delayPin), 0, 1023, MIN_DELAY, MAX_DELAY);
     loopTrimpots[1] = map(analogRead(fadePin), 0, 1023, 0, MAX_FADE);
-    loopTrimpots[2] = map(analogRead(briPin), 0, 1023, MIN_BRI, mySettings.maxBri);
+    loopTrimpots[2] = map(analogRead(briPin), 0, 1023, MIN_BRI, MAX_BRI);//mySettings.maxBri);
     loopTrimpots[3] = map(analogRead(huePin), 0, 1023, 0, 255);
   }
   else {
     startTrimpots[0] = map(analogRead(delayPin), 0, 1023, MIN_DELAY, MAX_DELAY);
     startTrimpots[1] = map(analogRead(fadePin), 0, 1023, 0, MAX_FADE);
-    startTrimpots[2] = map(analogRead(briPin), 0, 1023, MIN_BRI, mySettings.maxBri);
+    startTrimpots[2] = map(analogRead(briPin), 0, 1023, MIN_BRI, MAX_BRI);//mySettings.maxBri);
     startTrimpots[3] = map(analogRead(huePin), 0, 1023, 0, 255);
-  }
-  */
+  } 
+  //DEBUG_PRINT("Brightness loop: "); DEBUG_PRINT_LN(loopTrimpots[2]);
+  //DEBUG_PRINT("Brightness start: "); DEBUG_PRINT_LN(startTrimpots[2]);
+  
 }
 
 //TODO
 void compareTrimpots(byte adjMode = 0) {
   
   checkTrimpots();
+  // Loop through each Pot ....
   for (byte x = 0; x < 4; x++) {
-    if ( x > 1 && adjEnabled[x] == 0 && ( startTrimpots[x] - loopTrimpots[x] > adjThreshold || loopTrimpots[x] - startTrimpots[x] > adjThreshold )  ) { //compare Brightness and Hue using adjThreshold, as changes there can be a lot of work
+    //DEBUG_PRINT("Adjustment ");DEBUG_PRINT(x); DEBUG_PRINT(" start "); DEBUG_PRINT(startTrimpots[x]); DEBUG_PRINT(" loop "); DEBUG_PRINT(loopTrimpots[x]); 
+    if (/* x > 1 && */adjEnabled[x] == 0 && ( startTrimpots[x] - loopTrimpots[x] > adjThreshold || loopTrimpots[x] - startTrimpots[x] > adjThreshold )  ) { //compare Brightness and Hue using adjThreshold, as changes there can be a lot of work
       adjEnabled[x] = 1;
     }
     else if ( adjEnabled[x] == 0 && startTrimpots[x] != loopTrimpots[x] ) {
@@ -55,9 +69,11 @@ void compareTrimpots(byte adjMode = 0) {
       //if (loopTrimpots[x] != startTrimpots[x]) {
       if ((x==1 && loopTrimpots[x] != startTrimpots[x]) || (loopTrimpots[x]-startTrimpots[x]>=2 || startTrimpots[x]-loopTrimpots[x]>=2)) {
 
-        DEBUG_PRINT_LN(x);
-        DEBUG_PRINT_LN("=");
+        DEBUG_PRINT("POT Loop Start Value ");
+        DEBUG_PRINT(x);
+        DEBUG_PRINT(" = ");
         DEBUG_PRINT_LN(loopTrimpots[x]);
+        DEBUG_PRINT("Adjustment Mode ");DEBUG_PRINT_LN(adjMode);
 
         //adjustment is enabled for this pot, if settings have changed see if we need to recalc colors and all that jazz
         if (adjMode == 1) {
@@ -81,6 +97,9 @@ void compareTrimpots(byte adjMode = 0) {
             else if (x == 3) {
               DEBUG_PRINT_LN("Front Palette Changed");
               //mySettings.frontHue = map(loopTrimpots[x], 0, 1023, 0, 255); //if loopTrimpots were int's
+              int temp_pal = map(loopTrimpots[x], 0, 1023, 0, MAX_PAL);
+              frontTargetPalette = paletteArray[currentPalette[0]][temp_pal];
+              
               //mySettings.frontHue = loopTrimpots[x];
               //calcColors(mySettings.frontPalNum, 0);
             }
@@ -175,7 +194,7 @@ void checkAdjSwitch() {
           adjLoops=0;
         }
         adjMode = 0;
-        for (byte x = 0; x < 4; x++) adjEnabled[x] = 0; //           
+        for (byte x = 0; x < 4; x++) adjEnabled[x] = 0; //  Reset the adjustment mode, so no more adjustments are allowed.         
       }
   }
   else if (digitalRead(RADJ_PIN) == 1 && digitalRead(FADJ_PIN) == 1 && startAdjMode != 0) {
@@ -290,37 +309,4 @@ void factorySettings() {
   calcColors(mySettings.frontPalNum, 0);
   calcColors(mySettings.rearPalNum, 1);
   */                
-}
-
-//TODO - Ad Pallettes, and set here...
-void changePalNum(byte logicAddress, byte palNum=0) {
-  /*
-    if (logicAddress == 1)   {
-      if (palNum==0) {
-        //new pal num wasnt specified, so cycle pals up
-        mySettings.frontPalNum++;
-        if (mySettings.frontPalNum == NUM_PALS) mySettings.frontPalNum = 0;
-      }
-      else mySettings.frontPalNum=palNum-1;
-      //generate new front palette here!!!
-      calcColors(mySettings.frontPalNum, 0);
-      
-      DEBUG_PRINT_LN("pal");
-      DEBUG_PRINT_LN(mySettings.frontPalNum);
-
-    }
-    else if (logicAddress == 3) {
-      if (palNum==0) {
-        mySettings.rearPalNum++;
-        if (mySettings.rearPalNum == NUM_PALS) mySettings.rearPalNum = 0;
-      }
-      else mySettings.rearPalNum=palNum-1;
-      //generate new rear palette here!!!
-      calcColors(mySettings.rearPalNum, 1);
-          
-      DEBUG_PRINT_LN("pal");
-      DEBUG_PRINT_LN(mySettings.rearPalNum);
-  
-    }
-  */
 }
