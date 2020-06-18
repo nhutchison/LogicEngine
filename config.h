@@ -429,7 +429,7 @@ uint8_t STATUS_BRIGHTNESS=25; // set as uint8_t so it can be changed in code rea
 #define MAX_FADE 15
 #define MAX_DELAY 500
 #define MIN_DELAY 10
-#define MIN_BRI 5
+#define MIN_BRI 3 // Lower than 3 and some LED's won't light at certain colors.
 #define MAX_BRI 50 // Use this to control the max allowed.
 
 // Brightness control
@@ -449,4 +449,4 @@ int startTrimpots[4]; //will hold trimpot values when adjustments start being ma
 bool trimEnabled[4]; //during adjustment, if trimpot has moved beyond specified threshold it will be enabled here
 int loopTrimpots[4]; //will hold trimpot values when adjustments start being made
 bool adjEnabled[4]; //tells us if a trimpot has been adjusted beyond adj_threshold
-byte adjThreshold = 3; // default of 5
+byte adjThreshold = 5; // default of 5

@@ -237,7 +237,7 @@ void setup() {
   // Setup the Status LED on the control board
   FastLED.addLeds<NEOPIXEL, STATUSLED_PIN>(statusLED, 1); 
 
-  FastLED.setBrightness(20);
+  FastLED.setBrightness(brightness());
 
 #ifdef DEBUG
     // Pause to allow board init.
@@ -2217,6 +2217,15 @@ void parseCommand(char* inputStr)
     return;                     // exit
   }
 
+  // special case of P commands, where it's easier to parse the string to get digits
+  if(inputStr[pos]=='P')
+  {
+    pos++;
+    if(!length>pos) goto beep;     // no message argument
+    doPcommand(address, inputStr+pos);   // pass rest of string as argument
+    return;                     // exit
+  }
+
   // special case of G commands, which take a hex string
   if(inputStr[pos]=='G')
   {
@@ -2280,10 +2289,10 @@ void parseCommand(char* inputStr)
     case 'C':                           // Set the speed for the scrolling text.
       doCcommand(address, argument);
       break;
-    case 'P':    
-      if(!hasArgument) goto beep;       // invalid, no argument after command
-      doPcommand(address, argument);
-      break;    
+    //case 'P':    
+    //  if(!hasArgument) goto beep;       // invalid, no argument after command
+    //  doPcommand(address, argument);
+    //  break;    
     //case 'R':    
     //  if(!hasArgument) goto beep;       // invalid, no argument after command
     //  doRcommand(address, argument);
@@ -2442,31 +2451,85 @@ void doCcommand(int address, int argument)
 }
 
 // Parameter handling for Logic settings
-void doPcommand(int address, int argument)
+void doPcommand(int address, char* argument)
 {
+  uint8_t param = argument[0] - '0';
+  char* value_array = argument + 1;
+  unsigned long value = atol(value_array);
   
   DEBUG_PRINT_LN();
   DEBUG_PRINT("Command: P ");
   DEBUG_PRINT("Address: ");
   DEBUG_PRINT(address);
-  DEBUG_PRINT(" Argument: ");
-  DEBUG_PRINT_LN(argument);  
+  DEBUG_PRINT(" Parameter: ");
+  DEBUG_PRINT_LN(param);
+  //DEBUG_PRINT(" Argument: ");
+  //DEBUG_PRINT_LN(value_array);
+  DEBUG_PRINT(" Value: ");
+  DEBUG_PRINT_LN(value);
   
-  switch(argument)
+  
+  switch(param)
   {
-    case 60:
-      DEBUG_PRINT_LN("Select English");
-      if(address==0) {alphabetType[0]=alphabetType[1]=alphabetType[2]=LATIN;}
-      if(address==1) {alphabetType[0]=LATIN;}
-      if(address==2) {alphabetType[1]=LATIN;}
-      if(address==3) {alphabetType[2]=LATIN;}
+    case 2:
+      //// Brightness Control ////
+      //
+      // This PSI CAN DRAW MORE POWER THAN YOUR USB PORT CAN SUPPLY!!
+      // When using the USB connection on the Pro Micro to power the PSI (during programming
+      // for instance) be sure to have the brightness POT turned nearly all the way COUNTERCLOCKWISE.  
+      // Having the POT turned up too far when plugged into USB can damage the Pro Micro
+      // and/or your computer's USB port!!!!
+      // If you are connected to USB, KEEP THIS VALUE LOW, not higher than 20.
+      // Be aware that if you change the PSI setting to use the internal brightness value, set this back
+      // to 20 prior to plugging the PSI into your USB port!
+      // The Pro Micro can also be removed from the PSI and programmed separately. 
+      
+      if (value > 200) globalBrightnessValue = 200;
+      else globalBrightnessValue = value;
+      //EEPROM.write(internalBrightnessAddress, globalBrightnessValue);
+      
+      DEBUG_PRINT("Setting brightness to: ");
+      DEBUG_PRINT_LN(globalBrightnessValue);
       break;
-    case 61:    // Aurabesh
-      DEBUG_PRINT_LN("Select Aurebesh");
-      if(address==0) alphabetType[0]=alphabetType[1]=alphabetType[2]=AURABESH;
-      if(address==1) alphabetType[0]=AURABESH;
-      if(address==2) alphabetType[1]=AURABESH;
-      if(address==3) alphabetType[2]=AURABESH;
+    case 3:
+      //// Brightness Control ////
+      //
+      // This PSI CAN DRAW MORE POWER THAN YOUR USB PORT CAN SUPPLY!!
+      // When using the USB connection on the Pro Micro to power the PSI (during programming
+      // for instance) be sure to have the brightness POT turned nearly all the way COUNTERCLOCKWISE.  
+      // Having the POT turned up too far when plugged into USB can damage the Pro Micro
+      // and/or your computer's USB port!!!!
+      // If you are connected to USB, KEEP THIS VALUE LOW, not higher than 20.
+      // Be aware that if you change the PSI setting to use the internal brightness value, set this back
+      // to 20 prior to plugging the PSI into your USB port!
+      // The Pro Micro can also be removed from the PSI and programmed separately. 
+
+      if (value == 0){
+        useTempInternalBrightness = false;
+        DEBUG_PRINT("Restoring previous brightness values.");
+      }
+      else {
+        useTempInternalBrightness = true;
+        if (value > 200) tempGlobalBrightnessValue = 200;
+        else tempGlobalBrightnessValue = value;
+      }
+      
+      break;    
+    case 6:
+      if (value == 0) {
+        DEBUG_PRINT_LN("Select English");
+        if(address==0) {alphabetType[0]=alphabetType[1]=alphabetType[2]=LATIN;}
+        if(address==1) {alphabetType[0]=LATIN;}
+        if(address==2) {alphabetType[1]=LATIN;}
+        if(address==3) {alphabetType[2]=LATIN;}
+      }
+      else if (value == 1) {
+        DEBUG_PRINT_LN("Select Aurebesh");
+        if(address==0) alphabetType[0]=alphabetType[1]=alphabetType[2]=AURABESH;
+        if(address==1) alphabetType[0]=AURABESH;
+        if(address==2) alphabetType[1]=AURABESH;
+        if(address==3) alphabetType[2]=AURABESH;
+      }
       break;
     default:
       break;
