@@ -16,33 +16,58 @@
  *
  *  Serial:
  *
- *  Command T - Trigger a numbered Mode.  Txx where xx is the pattern number below. When using the R2 Touch app, commands
- *              should be in the form @0Tx\r or @0Txx\r. Please see below for address information for the T command. 
+ *  Command @Tx|y - Trigger a numbered Mode.  Txx where xx is the pattern number below. When using the R2 Touch app, commands
+ *                  should be in the form @0Tx\r or @0Txx\r. Please see below for address information for the T command. 
  *              
- *              The Optional time parameter can be sent by adding |yy to the T command.  Commands should be in the form
- *              @0Tx|y.  y is a value in seconds.
+ *                  The Optional time parameter can be sent by adding |yy to the T command.  Commands should be in the form
+ *                  @0Tx|y.  y is a value in seconds.
  *  
- *  Command A - Go to Main mode of operation which is Standard Swipe Pattern.
- *              @0A from R2 Touch
+ *  Command @A    - Go to Main mode of operation which is Standard Swipe Pattern.
+ *                  @0A from R2 Touch
  *              
- *  Command C - Set the Speed for the Scrolling Text
- *              yyy should be between 20 and 500 (20 is very fast, and 500 is very slow).  75 is the default.
- *              Each Display can have speed set independently using xCyyy where x is the address (1,2,3) or 
- *              0 to set all dissplays to the same speed.
- *              @0Cyyy from R2Touch
+ *  Command @Cyyy - Set the Speed for the Scrolling Text
+ *                  yyy should be between 20 and 500 (20 is very fast, and 500 is very slow).  75 is the default.
+ *                  Each Display can have speed set independently using xCyyy where x is the address (1,2,3) or 
+ *                  0 to set all dissplays to the same speed.
+ *                  @0Cyyy from R2Touch
  *  
- *  Command G - Newly proposed JawaLite Extended command to set color for scrolling text
- *              Should be in the form @0G0xrrggbb or @0Grrggbb hex input for RGB Colors
- *              Each display can have its color set independently, or all displays can be set to the same color
- *              @0Grrggbb from R2Touch
+ *  Command @Grgb - Newly proposed JawaLite Extended command to set color for scrolling text
+ *                  Should be in the form @0G0xrrggbb or @0Grrggbb hex input for RGB Colors
+ *                  Each display can have its color set independently, or all displays can be set to the same color
+ *                  @0Grrggbb from R2Touch
  *  
- *  Command D - Go to Default mode which is the Standard Swipe Pattern.
- *              @0D from R2 Touch
+ *  Command @D    - Go to Default mode which is the Standard Swipe Pattern.
+ *                  @0D from R2 Touch
  *              
- *  Command M - Set a message to be displayed on one of the logics.  (Triggered by xT100)
- *              @xM<message> from R2 Touch
- *              '1MHello' will set the Front Top Logic to display the message "Hello"
- *  
+ *  Command @M    - Set a message to be displayed on one of the logics.  (Triggered by xT100)
+ *                  @xM<message> from R2 Touch
+ *                  '1MHello' will set the Front Top Logic to display the message "Hello"
+ *              
+ *  Command @Ppxx - Set the Parameter specified by p to the value xxx 
+ *                  Each Logic can be addressed independently by specifying the address with @
+ *                  Specifying an address of 0 will make the change for all addressed displays as noted below.
+ *                  
+ *                  If p is 2, Set the internal brightness value, overriding the POT.
+ *                    The default setting is that brightness is 20.
+ *                    xxx is a value between 0 (off) and 255 (max brightness) Values over 200 
+ *                    will be limited to 200 to preserve the life of the LEDs. This value
+ *                    is saved to the EPROM and will persist after power down. (TBD)
+ *                    for example:  @P2x or @P2xx or @P2xxx
+ *                  
+ *                  If p is 3, Set the internal brighness value, overriding the POT, but do not save to EEPROM.
+ *                    @P30 will restore the brightness to it's previous value.  If that was POT control, the POT setting
+ *                    will be used, it if was internal brightness, then the previous global internal brightness witll be used.
+ *                    @P3yyy will set the brightness in the range 1 to 200.  Values over 200 will be limited to 200 to preserve
+ *                    the life of the LEDs.
+ *                    
+ *                  If p is 4, Set the brightness for the Status LED.
+ *                    If xx is 0, turn the status LED off.
+ *                  
+ *                  If p is 6, Set the Language used for scrolling text
+ *                    Setting xx to 0 will select English
+ *                    Setting xx to 1 will select Aurabesh
+ *                    (Note The rear Logic does not suppport Aurabesh due to the limited row height.
+ *                  
  *                                          
  *                                       ***************************   
  *                                       ********   WARNING ********
@@ -175,7 +200,7 @@ int updateLed = 0;
 // LED State
 bool firstTimeLED = false;
 bool ledPatternRunning = false;
-uint8_t ledPattern = 0;
+uint8_t statusledPattern = 0;
 uint8_t lastLEDEvent = 0;
 uint8_t ledLoops = 0;
 uint8_t ledEndLoops = 0;
@@ -320,11 +345,14 @@ void updateDisplays(){
 
 // This will toggle the Status LED colors on the control board.
 // Happy blinky light.
+// NOTE:  There's a strange link between main logic brightness and status brightness
+// At certain levels the status LED is flickering.
+//  Still debugging this!
 void setStatusLED(uint8_t mode, unsigned long delay, uint8_t loops) {
 
-  if (ledPattern != mode)
+  if (statusledPattern != mode)
   {
-    ledPattern = mode;
+    statusledPattern = mode;
     firstTimeLED = true;
     DEBUG_PRINT("Start LED Pattern "); DEBUG_PRINT_LN(mode);
   }
@@ -333,55 +361,55 @@ void setStatusLED(uint8_t mode, unsigned long delay, uint8_t loops) {
     firstTimeLED = false;
   }
 
-    
-    if (firstTimeLED)
-    {
-      DEBUG_PRINT_LN("Setting Happy Blinky Mode");
-      firstTimeLED = false;
-      ledPatternRunning = true;
-      ledLoops = 0;
-      ledEndLoops = loops;
-    }
-    
-
+  if (firstTimeLED)
+  {
+    DEBUG_PRINT_LN("Setting Happy Blinky Mode");
+    firstTimeLED = false;
+    ledPatternRunning = true;
+    ledLoops = 0;
+    ledEndLoops = loops;
+  }
+  
+  if (checkStatusDelay()) {
     switch(mode) {
       case 0:
         if (statusFlipFlop == 0) {
           statusLED[0] = CHSV(96,255,STATUS_BRIGHTNESS);
+          setStatusDelay(statusFlipFlopTime);
+          statusFlipFlop = statusFlipFlop ^ 1;
         }
         else {
           statusLED[0] = CHSV(0,255,STATUS_BRIGHTNESS);
+          setStatusDelay(statusFlipFlopTime);
+          statusFlipFlop = statusFlipFlop ^ 1;
         }
         break;
       case 1:
         int state = ledLoops % 2;
         DEBUG_PRINT_LN(state);
         
-        if (checkStatusDelay()) {
           switch (state) {
-            case 0: {
+            case 0:
                 // Purple
                 statusLED[0] = CHSV(200,255,STATUS_BRIGHTNESS);
                 setStatusDelay(delay);
                 break;
-              }
-            case 1: {
+            case 1:
                 // Off
                 statusLED[0] = CHSV(200,0,STATUS_BRIGHTNESS);
                 setStatusDelay(delay);
                 break;
-              }
-              default:
+            default:
                 break;
           }
-      }
       break;   
     }
+  }
 
   if ((ledPatternRunning) && (ledLoops == ledEndLoops)) {
     // End the pattern and reset.
     ledPatternRunning = false;
-    ledPattern = 0; // reset to default pattern
+    statusledPattern = 0; // reset to default pattern
     statusFlipFlopTime = slowBlink;
   }
 
@@ -1386,7 +1414,7 @@ void VUMeter(int logicDisplay, unsigned long time_delay, uint8_t loops, unsigned
     // Now go through each column, and set the pixel colors
     for (int c = 0; c < total_columns; c++)
     {
-      DEBUG_PRINT(" Col : ");DEBUG_PRINT(c);DEBUG_PRINT(" level : ");DEBUG_PRINT_LN(vu_level[logicDisplay-1][c]);
+      //DEBUG_PRINT(" Col : ");DEBUG_PRINT(c);DEBUG_PRINT(" level : ");DEBUG_PRINT_LN(vu_level[logicDisplay-1][c]);
       for (int i = 0; i < total_rows; i++) {
         if (logicDisplay == RLD) ledIndex = rearScrollLedMatrixRight[c][i];
         else if (logicDisplay == FLD_TOP) ledIndex = frontTopLedMatrix[c][i];
@@ -1431,7 +1459,7 @@ void VUMeter(int logicDisplay, unsigned long time_delay, uint8_t loops, unsigned
             }
             else {
               front_leds[ledIndex] = CRGB::Black;
-              DEBUG_PRINT("SETTING BLACK "); DEBUG_PRINT_LN(vu_level[logicDisplay-1][c]); 
+              //DEBUG_PRINT("SETTING BLACK "); DEBUG_PRINT_LN(vu_level[logicDisplay-1][c]); 
             }
           }
         }
@@ -1491,7 +1519,7 @@ void VUMeter(int logicDisplay, unsigned long time_delay, uint8_t loops, unsigned
       }
     }
 
-    globalPatternLoops[logicDisplay-1]--;
+    if (loops) globalPatternLoops[logicDisplay-1]--;
   }
 
 
@@ -1501,11 +1529,14 @@ void VUMeter(int logicDisplay, unsigned long time_delay, uint8_t loops, unsigned
   }
 
   if ((runtime == 0) && (!timingReceived)){
-    if (loops) {
+    DEBUG_PRINT_LN("DON't stop");
+    if (loops != 0) {
       // Check to see if we have run the loops needed for this pattern
+      DEBUG_PRINT_LN("thinking about tomorrow");
       loopsDonedoRestoreDefault(logicDisplay);
     }
   } else {
+    DEBUG_PRINT_LN("I'll soon be there");
     // Check for the global timeout to have expired.
     globalTimerDonedoRestoreDefault(logicDisplay);
   } 
@@ -1950,17 +1981,17 @@ void loop() {
         runPattern(i+1, lastEventCode[i]);
       }
     }
-/*
-    // Grab the POT Average value.
-    tempglobalPOTaverage = averagePOT();
-    delta = (tempglobalPOTaverage >= previousglobalPOTaverage) ? tempglobalPOTaverage - previousglobalPOTaverage : previousglobalPOTaverage - tempglobalPOTaverage;
-    
-    // Allow you to debounce the POT :D
-    if (delta > POT_VARIANCE_LEVEL){
-      previousglobalPOTaverage = tempglobalPOTaverage;
-      globalPOTaverage = tempglobalPOTaverage;
-    }
-*/
+
+    // This Creates a running average of the POT values which helps to remove
+    // any minor fluctutations in the readings.
+    calcAveragePOT();
+
+  // Check the POT's and Switch setup ...
+  checkAdjSwitch();
+  checkPalButton();
+
+  compareTrimpots();
+  
 #if (TEECESPSI>0)
   // Do teeces updates
   updateTeeces();
@@ -1968,24 +1999,14 @@ void loop() {
 
   }  
 
-  // Check the POT's and Switch setup ...
-  checkAdjSwitch();
-  checkPalButton();
-
-  compareTrimpots();
-
   // Status LED Stuff.
-  if (currentMillis - prevFlipFlopMillis >= statusFlipFlopTime) {
-    statusFlipFlop = statusFlipFlop ^ 1;
-    prevFlipFlopMillis=currentMillis;
-    // Heartbeat code ... to check Serial connection
-    //char msg1[] = {"Flip"};
-    //char msg2[] = {"Flop"};
-    //if (statusFlipFlop) DEBUG_PRINT_LN(msg1);
-    //else DEBUG_PRINT_LN(msg2);
-  }
+  //if (currentMillis - prevFlipFlopMillis >= statusFlipFlopTime) {
+  //  statusFlipFlop = statusFlipFlop ^ 1;
+  //  prevFlipFlopMillis=currentMillis;
+  //}
   
   setStatusLED();
+
   updateDisplays();
    
 }
@@ -2202,8 +2223,8 @@ void parseCommand(char* inputStr)
   
   address= atoi(addrStr);        // extract the address
 
-  DEBUG_PRINT(" I think this is the address! ");
-  DEBUG_PRINT_LN(address);
+  //DEBUG_PRINT(" I think this is the address! ");
+  //DEBUG_PRINT_LN(address);
   
   // check for more
   if(!length>pos) goto beep;            // invalid, no command after address
@@ -2455,7 +2476,7 @@ void doPcommand(int address, char* argument)
 {
   uint8_t param = argument[0] - '0';
   char* value_array = argument + 1;
-  unsigned long value = atol(value_array);
+  signed long value = atol(value_array);
   
   DEBUG_PRINT_LN();
   DEBUG_PRINT("Command: P ");
@@ -2471,50 +2492,127 @@ void doPcommand(int address, char* argument)
   
   switch(param)
   {
+    case 1:
+      // Use either the external POT or internal brightness value
+      if (value == 0){
+        // Set the brightness using the POT
+        internalBrightness[0] = internalBrightness[1] = internalBrightness[2] = false;
+        //EEPROM.write(externalPOTAddress, 0);
+        DEBUG_PRINT_LN("Use External POT ");
+      }
+      if (value == 1){
+        // Set the brightness using the internal value.
+        internalBrightness[0] = internalBrightness[1] = internalBrightness[2] = true;
+        //EEPROM.write(externalPOTAddress, 1);
+        DEBUG_PRINT_LN("Use internal Brightness setting ");
+      }
+      break;
     case 2:
       //// Brightness Control ////
       //
-      // This PSI CAN DRAW MORE POWER THAN YOUR USB PORT CAN SUPPLY!!
-      // When using the USB connection on the Pro Micro to power the PSI (during programming
+      // The LOGICS CAN DRAW MORE POWER THAN YOUR USB PORT CAN SUPPLY!!
+      // When using the USB connection on the R-Series to power the Logics (during programming
       // for instance) be sure to have the brightness POT turned nearly all the way COUNTERCLOCKWISE.  
-      // Having the POT turned up too far when plugged into USB can damage the Pro Micro
+      // Having the POT turned up too far when plugged into USB can damage the R-Series
       // and/or your computer's USB port!!!!
       // If you are connected to USB, KEEP THIS VALUE LOW, not higher than 20.
-      // Be aware that if you change the PSI setting to use the internal brightness value, set this back
+      // Be aware that if you change the setting to use the internal brightness value, set this back
       // to 20 prior to plugging the PSI into your USB port!
-      // The Pro Micro can also be removed from the PSI and programmed separately. 
+
+      // If the Logics are resetting randomly, this is a good sign that they do not have enough power!
+
+      // Note Individual brightness is not yet supported, despite how this code appears ;)
       
-      if (value > 200) globalBrightnessValue = 200;
-      else globalBrightnessValue = value;
+      if (value > 200) value = 200;
+
+      if (address == 0)
+      {
+        DEBUG_PRINT("Setting brightness for all logics to: ");
+        globalBrightnessValue[0] = globalBrightnessValue[1] = globalBrightnessValue[2] = value;
+      }
+      if (address == FLD_TOP)
+      {
+        DEBUG_PRINT("Setting brightness for Front Top to: ");
+        globalBrightnessValue[0] = value;
+      }
+      else if (address == FLD_BOTTOM) {
+        DEBUG_PRINT("Setting brightness for Front Bottom to: ");
+        globalBrightnessValue[1] = value;
+      }
+      else if (address == RLD) {
+        DEBUG_PRINT("Setting brightness for Rear to: ");
+        globalBrightnessValue[2] = value;
+      }
       //EEPROM.write(internalBrightnessAddress, globalBrightnessValue);
       
-      DEBUG_PRINT("Setting brightness to: ");
-      DEBUG_PRINT_LN(globalBrightnessValue);
+      DEBUG_PRINT_LN(value);
       break;
     case 3:
       //// Brightness Control ////
       //
-      // This PSI CAN DRAW MORE POWER THAN YOUR USB PORT CAN SUPPLY!!
-      // When using the USB connection on the Pro Micro to power the PSI (during programming
+      // The LOGICS CAN DRAW MORE POWER THAN YOUR USB PORT CAN SUPPLY!!
+      // When using the USB connection on the R-Series to power the Logics (during programming
       // for instance) be sure to have the brightness POT turned nearly all the way COUNTERCLOCKWISE.  
-      // Having the POT turned up too far when plugged into USB can damage the Pro Micro
+      // Having the POT turned up too far when plugged into USB can damage the R-Series
       // and/or your computer's USB port!!!!
       // If you are connected to USB, KEEP THIS VALUE LOW, not higher than 20.
-      // Be aware that if you change the PSI setting to use the internal brightness value, set this back
+      // Be aware that if you change the setting to use the internal brightness value, set this back
       // to 20 prior to plugging the PSI into your USB port!
-      // The Pro Micro can also be removed from the PSI and programmed separately. 
+
+      // If the Logics are resetting randomly, this is a good sign that they do not have enough power!
+
+      // Note Individual brightness is not yet supported, despite how this code appears ;)
 
       if (value == 0){
-        useTempInternalBrightness = false;
+        useTempInternalBrightness[0] = useTempInternalBrightness[1] = useTempInternalBrightness[2] = false;
         DEBUG_PRINT("Restoring previous brightness values.");
       }
       else {
-        useTempInternalBrightness = true;
-        if (value > 200) tempGlobalBrightnessValue = 200;
-        else tempGlobalBrightnessValue = value;
+        if (value > 200) value = 200;
+
+        if (address == 0)
+        {
+          DEBUG_PRINT("Setting temp brightness for all logics to: ");
+          useTempInternalBrightness[0] = useTempInternalBrightness[1] = useTempInternalBrightness[2] = true;
+          tempGlobalBrightnessValue[0] = tempGlobalBrightnessValue[1] = tempGlobalBrightnessValue[2] = value;
+        }
+        if (address == FLD_TOP)
+        {
+          DEBUG_PRINT("Setting temp brightness for Front Top to: ");
+          useTempInternalBrightness[0] = true;
+          tempGlobalBrightnessValue[0] = value;
+        }
+        else if (address == FLD_BOTTOM) {
+          DEBUG_PRINT("Setting temp brightness for Front Bottom to: ");
+          useTempInternalBrightness[1] = true;
+          tempGlobalBrightnessValue[1] = value;
+        }
+        else if (address == RLD) {
+          DEBUG_PRINT("Setting temp brightness for Rear to: ");
+          useTempInternalBrightness[2] = true;
+          tempGlobalBrightnessValue[2] = value;
+        }
+        DEBUG_PRINT_LN(value);
       }
       
-      break;    
+      break; 
+    case 4:
+      // Settings for the STATUS LED Brightness
+      // Set to 0 to turn off the Status LED.
+      if (value == 0) 
+      {
+        DEBUG_PRINT_LN("Turning off Status LED ");
+        STATUS_BRIGHTNESS = 0;
+        break;
+      }
+      if (value > 200) value = 200;
+      if (value < MIN_STATUS_BRIGHTNESS) value = MIN_STATUS_BRIGHTNESS;
+      STATUS_BRIGHTNESS = value;
+      DEBUG_PRINT("Setting brightness for Status LED to: "); DEBUG_PRINT_LN(value);
+      break;
+    case 5:
+      // Change the Palette Number
+      
     case 6:
       if (value == 0) {
         DEBUG_PRINT_LN("Select English");

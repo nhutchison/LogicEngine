@@ -433,10 +433,19 @@ uint8_t STATUS_BRIGHTNESS=25; // set as uint8_t so it can be changed in code rea
 #define MAX_BRI 50 // Use this to control the max allowed.
 
 // Brightness control
-bool internalBrightness = false;
-bool useTempInternalBrightness = false;
-uint8_t globalBrightnessValue = 10; 
-uint8_t tempGlobalBrightnessValue = 10;
+bool internalBrightness[3] = {false,false,false};
+bool useTempInternalBrightness[3] = {false,false,false};
+uint8_t globalBrightnessValue[3] = {10,10,10}; 
+uint8_t tempGlobalBrightnessValue[3] = {10,10,10};
+
+// POT Averager
+#define POT_AVG_SIZE 30
+// Change this if you get flicker.  A larger number will reduce POT noise.
+#define POT_VARIANCE_LEVEL 2
+uint16_t POTReadings[4][POT_AVG_SIZE];
+uint8_t POTIndex[4] = {0,0,0};
+unsigned long POTSum[4] = {0,0,0};
+uint8_t POTCount[4] = {0,0,0};
 
 uint8_t palPinLoops; //used to count how long the Pallet button is held
 bool palPinStatus = 1;

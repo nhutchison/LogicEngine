@@ -22,9 +22,34 @@ void setStatusLED(uint8_t mode=0, unsigned long delay=250, uint8_t loops=2);
 // This is where we'll read from the pot, etc
 uint8_t brightness() {
   //LED brightness is capped at 200 (out of 255) to reduce heat and extend life of LEDs. 
-  if (useTempInternalBrightness) return tempGlobalBrightnessValue;
-  else if (internalBrightness) return globalBrightnessValue;
+  if (useTempInternalBrightness[0]) return tempGlobalBrightnessValue[0];
+  else if (internalBrightness[0]) return globalBrightnessValue[0];
   else return loopTrimpots[2];
+}
+
+// Firmware Routine to average the value received from the POT so that the external resistor isn't needed
+// WARNING - DO NOT PUT DEBUG OUTPUT IN THIS FUNCTION, YOU WILL CRASH THE BOARDS!
+void calcAveragePOT() {
+  
+  // Calculate the Rolling Sum
+  for (int i=0; i<4; i++) {
+    
+    POTSum[i] -= POTReadings[i][POTIndex[i]];
+    if (i == 0) POTReadings[0][POTIndex[i]] = map(analogRead(delayPin), 0, 1023, MIN_DELAY, MAX_DELAY);
+    else if (i == 1) POTReadings[1][POTIndex[i]] = map(analogRead(fadePin), 0, 1023, 0, MAX_FADE);
+    else if (i == 2) POTReadings[2][POTIndex[i]] = map(analogRead(briPin), 0, 1023, MIN_BRI, MAX_BRI);
+    else if (i == 3) POTReadings[3][POTIndex[i]] = map(analogRead(huePin), 0, 1023, 0, 255);
+    POTSum[i] += POTReadings[i][POTIndex[i]];
+  
+    // Adjust the index so we maintain a circular buffer.
+    POTIndex[i]++;
+    POTIndex[i] = POTIndex[i] % POT_AVG_SIZE;
+  }
+  //return POTSum[potNum] / POT_AVG_SIZE;
+}
+
+uint8_t getAveragePOT(int potNum) {
+  return POTSum[potNum] / POT_AVG_SIZE;
 }
 
 
@@ -34,16 +59,16 @@ void checkTrimpots(bool startTrim = 0) {
   //check the current trimpot values and put them into startTrimpots[] or loopTrimpots[]
   //DEBUG_PRINT("StartTrim ");DEBUG_PRINT_LN(startTrim);
   if (startTrim == 0) {
-    loopTrimpots[0] = map(analogRead(delayPin), 0, 1023, MIN_DELAY, MAX_DELAY);
-    loopTrimpots[1] = map(analogRead(fadePin), 0, 1023, 0, MAX_FADE);
-    loopTrimpots[2] = map(analogRead(briPin), 0, 1023, MIN_BRI, MAX_BRI);//mySettings.maxBri);
-    loopTrimpots[3] = map(analogRead(huePin), 0, 1023, 0, 255);
+    loopTrimpots[0] = getAveragePOT(0); //map(analogRead(delayPin), 0, 1023, MIN_DELAY, MAX_DELAY);
+    loopTrimpots[1] = getAveragePOT(1); //map(analogRead(fadePin), 0, 1023, 0, MAX_FADE);
+    loopTrimpots[2] = getAveragePOT(2); //map(analogRead(briPin), 0, 1023, MIN_BRI, MAX_BRI);//mySettings.maxBri);
+    loopTrimpots[3] = getAveragePOT(3); //map(analogRead(huePin), 0, 1023, 0, 255);
   }
   else {
-    startTrimpots[0] = map(analogRead(delayPin), 0, 1023, MIN_DELAY, MAX_DELAY);
-    startTrimpots[1] = map(analogRead(fadePin), 0, 1023, 0, MAX_FADE);
-    startTrimpots[2] = map(analogRead(briPin), 0, 1023, MIN_BRI, MAX_BRI);//mySettings.maxBri);
-    startTrimpots[3] = map(analogRead(huePin), 0, 1023, 0, 255);
+    startTrimpots[0] = getAveragePOT(0);//map(analogRead(delayPin), 0, 1023, MIN_DELAY, MAX_DELAY);
+    startTrimpots[1] = getAveragePOT(1);//map(analogRead(fadePin), 0, 1023, 0, MAX_FADE);
+    startTrimpots[2] = getAveragePOT(2);//map(analogRead(briPin), 0, 1023, MIN_BRI, MAX_BRI);//mySettings.maxBri);
+    startTrimpots[3] = getAveragePOT(3);//map(analogRead(huePin), 0, 1023, 0, 255);
   } 
   //DEBUG_PRINT("Brightness loop: "); DEBUG_PRINT_LN(loopTrimpots[2]);
   //DEBUG_PRINT("Brightness start: "); DEBUG_PRINT_LN(startTrimpots[2]);
