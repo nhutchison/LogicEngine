@@ -244,6 +244,27 @@ void fill_column(int logicDisplay, uint8_t column, CRGB color, uint8_t scale_bri
 #endif
 
 
+////////////////////////////////////////
+//a structure to keep our settings in...
+typedef struct {
+  unsigned int writes; //keeps a count of how many times we've written settings to flash
+  uint8_t maxBri;
+  uint8_t frontTopDelay; uint8_t frontTopFade; uint8_t frontTopBri; uint8_t frontTopHue; uint8_t frontTopPalNum; uint8_t frontTopDesat;
+  uint8_t frontBotDelay; uint8_t frontBotFade; uint8_t frontBotBri; uint8_t frontBotHue; uint8_t frontBotPalNum; uint8_t frontBotDesat;
+  uint8_t rearDelay;     uint8_t rearFade;     uint8_t rearBri;     uint8_t rearHue;     uint8_t rearPalNum;     uint8_t rearDesat;
+  uint8_t frontScrollSpeed; uint8_t rearScrollSpeed;
+  uint8_t internalBrightness;
+  uint8_t statusLEDBrightness; bool statusLEDOn;
+} Settings;
+
+#if defined(__SAMD21G18A__)
+  // the Reactor Zero doesn't have EEPROM, so we use the FlashStorage library to store settings persistently in flash memory
+  #include <FlashStorage.h> //see StoreNameAndSurname example
+  FlashStorage(my_flash_store, Settings); // Reserve a portion of flash memory to store Settings
+  Settings mySettings;   //create a mySettings variable structure in SRAM
+  Settings tempSettings; //create a temporary variable structure in SRAM
+#endif 
+
 // Function Prototypes
 /*
 // function prototype for the Matrix Display.  This is doing cleverness.  Don't change it!
@@ -1088,7 +1109,7 @@ void ChangePalettePeriodically(int logicDisplay)
 }
 
 // Flashes all LED's to the given color.  The time_delay is the delay that the LED is on then Off
-void Flash(int logicDisplay, unsigned long time_delay, int loops, CRGB color, unsigned long runtime) //4 seconds same as alarm Command 0T2
+void Logic_Flash(int logicDisplay, unsigned long time_delay, int loops, CRGB color, unsigned long runtime) //4 seconds same as alarm Command 0T2
 {
   if (firstTime[logicDisplay - 1]) {
     DEBUG_PRINT_LN("Flash");
@@ -2045,11 +2066,11 @@ void runPattern(int logicDisplay, int pattern) {
       break;
     case 2:             //  2 = Flash Panel (4s)
       // logicDisplay, time_delay, loops, color, runtime
-      Flash(logicDisplay, 60, 0, CRGB::Grey, 4);
+      Logic_Flash(logicDisplay, 60, 0, CRGB::Grey, 4);
       break;
     case 3:             //  3 = Alarm (4s)
       // logicDisplay, time_delay, loops, color, runtime
-      Flash(logicDisplay, 125, 0, CRGB::Grey, 4);
+      Logic_Flash(logicDisplay, 125, 0, CRGB::Grey, 4);
       break;
     case 4:             //  4 = Short circuit
       FadeOut(logicDisplay, 257, 3);
@@ -2060,7 +2081,7 @@ void runPattern(int logicDisplay, int pattern) {
       break;
     case 5:             //  5 = Scream - Note this is the same as Alarm currently! (4s)
       // logicDisplay, time_delay, loops, color, runtime
-      Flash(logicDisplay, 125, 0, CRGB::Grey, 4);
+      Logic_Flash(logicDisplay, 125, 0, CRGB::Grey, 4);
       break;
     case 6:             //  6 = Leia message (34s)
       //logicDisplay, color, time_delay, type, loops, runtime
@@ -2309,11 +2330,7 @@ void parseCommand(char* inputStr)
       break;
     case 'C':                           // Set the speed for the scrolling text.
       doCcommand(address, argument);
-      break;
-    //case 'P':    
-    //  if(!hasArgument) goto beep;       // invalid, no argument after command
-    //  doPcommand(address, argument);
-    //  break;    
+      break;   
     //case 'R':    
     //  if(!hasArgument) goto beep;       // invalid, no argument after command
     //  doRcommand(address, argument);
@@ -2484,8 +2501,6 @@ void doPcommand(int address, char* argument)
   DEBUG_PRINT(address);
   DEBUG_PRINT(" Parameter: ");
   DEBUG_PRINT_LN(param);
-  //DEBUG_PRINT(" Argument: ");
-  //DEBUG_PRINT_LN(value_array);
   DEBUG_PRINT(" Value: ");
   DEBUG_PRINT_LN(value);
   
