@@ -1,3 +1,8 @@
+// If running the Updated R-Series with 112 LED's uncomment this line.
+// Note that the default R-Series is a 96 LED Rear Logic.
+//#define RLD112
+
+
 ///
 // SERIAL CONFIGURATION
 ///
@@ -66,7 +71,11 @@ uint8_t defaultPattern = 1; //Mode 1 is Random Blinkies
 ///
 
 #define NUM_FRONT_LEDS 80
-#define NUM_REAR_LEDS 96
+#ifdef RLD112
+  #define NUM_REAR_LEDS 112
+#else
+  #define NUM_REAR_LEDS 96
+#endif
 
 #if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MK64FX512__) || defined(__MK66FX1M0__)
   #define FRONT_PIN 21
@@ -83,6 +92,10 @@ uint8_t defaultPattern = 1; //Mode 1 is Random Blinkies
 #elif defined(__SAMD21G18A__)
   #define FRONT_PIN 5
   #define REAR_PIN 3
+#ifdef RLD112  
+  #define REAR_DAT_PIN 11  // Used for the 112 LED version
+  #define REAR_CLK_PIN 3   // Used for the 112 LED version
+#endif
   #define STATUSLED_PIN 8
   // POT and SWITCH PINS ....
   #define delayPin A0
@@ -100,8 +113,8 @@ uint8_t defaultPattern = 1; //Mode 1 is Random Blinkies
 #define FRONT_COL 8
 #define FRONT_ROW 5
 #define FRONT_ALL_ROW (FRONT_ROW * 2)
-#define REAR_COL 24
 #define REAR_ROW 4
+#define REAR_COL NUM_REAR_LEDS / REAR_ROW
 
 
 ///
@@ -234,6 +247,7 @@ uint8_t bothFrontLedMatrix[FRONT_COL][FRONT_ALL_ROW] = {
 };
 
 uint8_t rearLedMatrix[REAR_COL][REAR_ROW] = {
+#ifndef RLD112
   {  0, 47, 48, 95,},
   {  1, 46, 49, 94,},
   {  2, 45, 50, 93,},
@@ -258,11 +272,42 @@ uint8_t rearLedMatrix[REAR_COL][REAR_ROW] = {
   { 21, 26, 69, 74,},
   { 22, 25, 70, 73,},
   { 23, 24, 71, 72,},
+#else
+  {  0 , 55  , 56  , 111 ,},
+  { 1 , 54  , 57  , 110 ,},
+  { 2 , 53  , 58  , 109 ,},
+  { 3 , 52  , 59  , 108 ,},
+  { 4 , 51  , 60  , 107 ,},
+  { 5 , 50  , 61  , 106 ,},
+  { 6 , 49  , 62  , 105 ,},
+  { 7 , 48  , 63  , 104 ,},
+  { 8 , 47  , 64  , 103 ,},
+  { 9 , 46  , 65  , 102 ,},
+  { 10  , 45  , 66  , 101 ,},
+  { 11  , 44  , 67  , 100 ,},
+  { 12  , 43  , 68  , 99  ,},
+  { 13  , 42  , 69  , 98  ,},
+  { 14  , 41  , 70  , 97  ,},
+  { 15  , 40  , 71  , 96  ,},
+  { 16  , 39  , 72  , 95  ,},
+  { 17  , 38  , 73  , 94  ,},
+  { 18  , 37  , 74  , 93  ,},
+  { 19  , 36  , 75  , 92  ,},
+  { 20  , 35  , 76  , 91  ,},
+  { 21  , 34  , 77  , 90  ,},
+  { 22  , 33  , 78  , 89  ,},
+  { 23  , 32  , 79  , 88  ,},
+  { 24  , 31  , 80  , 87  ,},
+  { 25  , 30  , 81  , 86  ,},
+  { 26  , 29  , 82  , 85  ,},
+  { 27  , 28  , 83  , 84  ,},
+#endif
 };
 
 // We generate the columns slightly differently for scrolling text.
 // This is a right slanted
 uint8_t rearScrollLedMatrixRight[REAR_COL+2][REAR_ROW] = {
+#ifndef RLD112
   {  0, -1, -1, -1,},
   {  1, 47, 48, -1,},
   {  2, 46, 49, 95,},
@@ -289,10 +334,43 @@ uint8_t rearScrollLedMatrixRight[REAR_COL+2][REAR_ROW] = {
   { 23, 25, 70, 74,},
   { -1, 24, 71, 73,},
   { -1, -1, -1, 72,},
+#else
+  {  0 , -1  , -1  , -1  ,},
+  { 1 , 55  , 56  , -1  ,},
+  { 2 , 54  , 57  , 111 ,},
+  { 3 , 53  , 58  , 110 ,},
+  { 4 , 52  , 59  , 109 ,},
+  { 5 , 51  , 60  , 108 ,},
+  { 6 , 50  , 61  , 107 ,},
+  { 7 , 49  , 62  , 106 ,},
+  { 8 , 48  , 63  , 105 ,},
+  { 9 , 47  , 64  , 104 ,},
+  { 10  , 46  , 65  , 103 ,},
+  { 11  , 45  , 66  , 102 ,},
+  { 12  , 44  , 67  , 101 ,},
+  { 13  , 43  , 68  , 100 ,},
+  { 14  , 42  , 69  , 99  ,},
+  { 15  , 41  , 70  , 98  ,},
+  { 16  , 40  , 71  , 97  ,},
+  { 17  , 39  , 72  , 96  ,},
+  { 18  , 38  , 73  , 95  ,},
+  { 19  , 37  , 74  , 94  ,},
+  { 20  , 36  , 75  , 93  ,},
+  { 21  , 35  , 76  , 92  ,},
+  { 22  , 34  , 77  , 91  ,},
+  { 23  , 33  , 78  , 90  ,},
+  { 24  , 32  , 79  , 89  ,},
+  { 25  , 31  , 80  , 88  ,},
+  { 26  , 30  , 81  , 87  ,},
+  { 27  , 29  , 82  , 86  ,},
+  { -1  , 28  , 83  , 85  ,},
+  { -1  , -1  , -1  , 84  ,},
+#endif
 };
 
 // We generate the columns slightly differently for scrolling text.
 uint8_t rearScrollLedMatrixLeft[REAR_COL+1][REAR_ROW] = {
+#ifndef RLD112
   { -1, -1, 48, 95,},
   {  0, 47, 49, 94,},
   {  1, 46, 50, 93,},
@@ -318,6 +396,37 @@ uint8_t rearScrollLedMatrixLeft[REAR_COL+1][REAR_ROW] = {
   { 21, 26, 70, 73,},
   { 22, 25, 71, 72,},
   { 23, 24, -1, -1,},
+#else
+  {  -1  , -1  , 56  , 111 ,},
+  { 0 , 55  , 57  , 110 ,},
+  { 1 , 54  , 58  , 109 ,},
+  { 2 , 53  , 59  , 108 ,},
+  { 3 , 52  , 60  , 107 ,},
+  { 4 , 51  , 61  , 106 ,},
+  { 5 , 50  , 62  , 105 ,},
+  { 6 , 49  , 63  , 104 ,},
+  { 7 , 48  , 64  , 103 ,},
+  { 8 , 47  , 65  , 102 ,},
+  { 9 , 46  , 66  , 101 ,},
+  { 10  , 45  , 67  , 100 ,},
+  { 11  , 44  , 68  , 99  ,},
+  { 12  , 43  , 69  , 98  ,},
+  { 13  , 42  , 70  , 97  ,},
+  { 14  , 41  , 71  , 96  ,},
+  { 15  , 40  , 72  , 95  ,},
+  { 16  , 39  , 73  , 94  ,},
+  { 17  , 38  , 74  , 93  ,},
+  { 18  , 37  , 75  , 92  ,},
+  { 19  , 36  , 76  , 91  ,},
+  { 20  , 35  , 77  , 90  ,},
+  { 21  , 34  , 78  , 89  ,},
+  { 22  , 33  , 79  , 88  ,},
+  { 23  , 32  , 80  , 87  ,},
+  { 24  , 31  , 81  , 86  ,},
+  { 25  , 30  , 82  , 85  ,},
+  { 26  , 29  , 83  , 84  ,},
+  { 27  , 28  , -1  , -1  ,},
+#endif
 };
 
 

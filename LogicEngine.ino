@@ -278,7 +278,11 @@ void setup() {
   
   // Setup two arrays of LED's for the front and rear Logics
   FastLED.addLeds<NEOPIXEL, FRONT_PIN>(front_leds, NUM_FRONT_LEDS); 
-  FastLED.addLeds<NEOPIXEL, REAR_PIN>(rear_leds, NUM_REAR_LEDS); 
+  #ifdef RLD112
+    FastLED.addLeds<SK9822, REAR_DAT_PIN, REAR_CLK_PIN, BGR>(rear_leds, NUM_REAR_LEDS); //
+  #else
+    FastLED.addLeds<NEOPIXEL, REAR_PIN>(rear_leds, NUM_REAR_LEDS);
+  #endif
 
   // Setup the Status LED on the control board
   FastLED.addLeds<NEOPIXEL, STATUSLED_PIN>(statusLED, 1); 
