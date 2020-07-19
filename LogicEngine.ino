@@ -2166,7 +2166,22 @@ void serialEventRun(void)
 // Again this is needed for the Teensy to be able to receive commands
 // The Reactor does not need this.
 void serialEvent() {
-  debugSerialEvent();
+  DEBUG_PRINT_LN("UART Serial In");
+  bool command_available;
+
+  dataRcvInProgress = true;
+  while (serialPort->available()) {  
+    char ch = (char)serialPort->read();  // get the new byte
+
+    // New improved command handling
+    command_available=buildCommand(ch, cmdString);  // build command line
+    if (command_available) 
+    {
+      parseCommand(cmdString);  // interpret the command
+    }
+  }
+  dataRcvInProgress = false;
+  sei();
 }
 
 void debugSerialEvent() {
