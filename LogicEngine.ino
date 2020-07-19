@@ -62,6 +62,11 @@
  *                    
  *                  If p is 4, Set the brightness for the Status LED.
  *                    If xx is 0, turn the status LED off.
+ *                    
+ *                  If p is 5, Set the Palette
+ *                    If xx is -1, select the nect palette
+ *                    If xx is a number < MAX number of palettes, set the palette to that number
+ *                    If xx is greater than MAX_Palettes, set the palette to the default (0)
  *                  
  *                  If p is 6, Set the Language used for scrolling text
  *                    Setting xx to 0 will select English
@@ -2646,21 +2651,107 @@ void doPcommand(int address, char* argument)
       break;
     case 5:
       // Change the Palette Number
-      
+        if(address==0) {
+          switch (value)
+          {
+            case -1:
+              DEBUG_PRINT_LN("Move to next Palette");
+              currentPalette[0]++;
+              currentPalette[1]++;
+              currentPalette[2]++;
+              if (currentPalette[0] == MAX_PAL) currentPalette[0] = 0;
+              if (currentPalette[1] == MAX_PAL) currentPalette[1] = 0;
+              if (currentPalette[2] == MAX_PAL) currentPalette[2] = 0;
+
+              // Don't break here we want to fall through!
+            default:
+              if (value != -1)
+              {
+                if (value >= MAX_PAL) value = 0;
+                currentPalette[0] = currentPalette[1] = currentPalette[2] = value;
+              }
+              // Set the respective Target Palettes
+              frontTargetPalette = paletteArray[currentPalette[0]][0];
+              frontTargetPalette = paletteArray[currentPalette[1]][1];
+              rearTargetPalette = paletteArray[currentPalette[2]][2];
+              break;
+          }
+        }
+        if(address==FLD_TOP) {
+          switch (value)
+          {
+            case -1:
+              DEBUG_PRINT_LN("Move to next Palette");
+              currentPalette[0]++;
+              if (currentPalette[0] == MAX_PAL) currentPalette[0] = 0;
+              // Don't break here we want to fall through!
+            default:
+              if (value != -1)
+              {
+                if (value >= MAX_PAL) value = 0;
+                currentPalette[0] = value;
+              }
+              // Set the respective Target Palettes
+              frontTargetPalette = paletteArray[currentPalette[0]][0];
+              break;
+          }
+        }
+        if(address==FLD_BOTTOM) {
+          switch (value)
+          {
+            case -1:
+              DEBUG_PRINT_LN("Move to next Palette");
+              currentPalette[1]++;
+              if (currentPalette[1] == MAX_PAL) currentPalette[1] = 0;
+
+              // Don't break here we want to fall through!
+            default:
+              if (value != -1)
+              {
+                if (value >= MAX_PAL) value = 0;
+                currentPalette[1] = value;
+              }
+              // Set the respective Target Palettes
+              frontTargetPalette = paletteArray[currentPalette[1]][1];
+              break;
+          }
+        }
+        if(address==RLD) {
+          switch (value)
+          {
+            case -1:
+              DEBUG_PRINT_LN("Move to next Palette");
+              currentPalette[2]++;
+              if (currentPalette[2] == MAX_PAL) currentPalette[2] = 0;
+
+              // Don't break here we want to fall through!
+            default:
+              if (value != -1)
+              {
+                if (value >= MAX_PAL) value = 0;
+                currentPalette[2] = value;
+              }
+              // Set the respective Target Palettes
+              rearTargetPalette = paletteArray[currentPalette[2]][2];
+              break;
+          }
+        }
+
+        break;
     case 6:
       if (value == 0) {
         DEBUG_PRINT_LN("Select English");
         if(address==0) {alphabetType[0]=alphabetType[1]=alphabetType[2]=LATIN;}
-        if(address==1) {alphabetType[0]=LATIN;}
-        if(address==2) {alphabetType[1]=LATIN;}
-        if(address==3) {alphabetType[2]=LATIN;}
+        if(address==FLD_TOP) {alphabetType[0]=LATIN;}
+        if(address==FLD_BOTTOM) {alphabetType[1]=LATIN;}
+        if(address==RLD) {alphabetType[2]=LATIN;}
       }
       else if (value == 1) {
         DEBUG_PRINT_LN("Select Aurebesh");
         if(address==0) alphabetType[0]=alphabetType[1]=alphabetType[2]=AURABESH;
-        if(address==1) alphabetType[0]=AURABESH;
-        if(address==2) alphabetType[1]=AURABESH;
-        if(address==3) alphabetType[2]=AURABESH;
+        if(address==FLD_TOP) alphabetType[0]=AURABESH;
+        if(address==FLD_BOTTOM) alphabetType[1]=AURABESH;
+        if(address==RLD) alphabetType[2]=AURABESH;
       }
       break;
     default:
