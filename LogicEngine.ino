@@ -317,8 +317,18 @@ void setup() {
     #error UNRECOGNIZED SERIAL PORT.  Sorry.
   #endif
 #endif //DEBUG
+
+#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MK64FX512__) || defined(__MK66FX1M0__)
+  // Teensy uses Serial 3 for UART.  No idea why Serial 3, but apparently it does!
+  
+  Serial3.begin(BAUDRATE);
+  serialPort = &Serial3;
+#elif defined(__SAMD21G18A__)
   Serial1.begin(BAUDRATE);
   serialPort = &Serial1;
+#else 
+  #error UNRECOGNISED SERIAL PORT.  I give up!  
+#endif
 
   // Setup I2C
   Wire.begin(I2CAdress);                   // Start I2C Bus as Master I2C Address
@@ -2038,6 +2048,14 @@ void loop() {
   // Do teeces updates
   updateTeeces();
 #endif // (TEECESPSI>0)
+
+// Ok, so this is a hack .. and I don't like it, but it makes the Teensy work, so it's only here if you're compiling for Teensy
+// I will remove this when I can figure out the reality of what is actually needed!
+#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MK64FX512__) || defined(__MK66FX1M0__)
+  // On the Teensy, cann the Serial handler directly as it doesn't seem to be getting caught in teh interrupt handler
+  // the way it should be!
+  serialEvent();
+#endif
 
   }  
 
