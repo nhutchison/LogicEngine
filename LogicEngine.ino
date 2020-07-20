@@ -67,6 +67,7 @@
  *                    If xx is -1, select the next palette
  *                    If xx is a number < MAX number of palettes, set the palette to that number
  *                    If xx is greater than MAX_Palettes, set the palette to the default (0)
+ *                    Each display (Front Top, Front Bottom and Rear) can be set to an independent palette
  *                  
  *                  If p is 6, Set the Language used for scrolling text
  *                    Setting xx to 0 will select English
@@ -303,17 +304,19 @@ void setup() {
     delay(2000);
 #endif  
 
+#ifdef DEBUG
   // Setup the debug Serial Port.
-#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MK64FX512__) || defined(__MK66FX1M0__)
-  Serial.begin(BAUDRATE);
-  debugSerialPort = &Serial;
-#elif defined(__SAMD21G18A__)
-  SerialUSB.begin(BAUDRATE);
-  debugSerialPort = &SerialUSB;
-#else
-  // No Board settings known for serial port pins ... I'm going to barf this!
-  #error UNRECOGNIZED SERIAL PORT.  Sorry.
-#endif
+  #if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MK64FX512__) || defined(__MK66FX1M0__)
+    Serial.begin(BAUDRATE);
+    debugSerialPort = &Serial;
+  #elif defined(__SAMD21G18A__)
+    SerialUSB.begin(BAUDRATE);
+    debugSerialPort = &SerialUSB;
+  #else
+    // No Board settings known for serial port pins ... I'm going to barf this!
+    #error UNRECOGNIZED SERIAL PORT.  Sorry.
+  #endif
+#endif //DEBUG
   Serial1.begin(BAUDRATE);
   serialPort = &Serial1;
 
