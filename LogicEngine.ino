@@ -2750,6 +2750,7 @@ void doPcommand(int address, char* argument)
 
         break;
     case 6:
+      // Language selection for scrolling text
       if (value == 0) {
         DEBUG_PRINT_LN("Select English");
         if(address==0) {alphabetType[0]=alphabetType[1]=alphabetType[2]=LATIN;}
@@ -2765,6 +2766,14 @@ void doPcommand(int address, char* argument)
         if(address==RLD) alphabetType[2]=AURABESH;
       }
       break;
+    case 7:
+      // Delay speed for blinkies.
+      // Valid values are between 1 and 200, default of 50
+      if (value == -1) value = 50; // Reset to default.
+      if (value < 1) value = 1;
+      if (value > 200) value = 200;
+      DEBUG_PRINT("Setting speed to "); DEBUG_PRINT_LN(value);
+      UPDATES_PER_SECOND = value;
     default:
       break;
   }  
