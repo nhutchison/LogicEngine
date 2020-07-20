@@ -2168,17 +2168,65 @@ void receiveEvent(int eventCode) {
 */
 void serialEventRun(void)
 {
-  if (serialPort->available()) serialEvent();
-  if (debugSerialPort->available()) debugSerialEvent();
+  serialEvent();
 }
 
 // Again this is needed for the Teensy to be able to receive commands
 // The Reactor does not need this.
 void serialEvent() {
-  if (serialPort->available()) jawaSerialEvent();
-  if (debugSerialPort->available()) debugSerialEvent();
+  //if (serialPort->available()) jawaSerialEvent();
+  //if (debugSerialPort->available()) debugSerialEvent();
+
+  if (serialPort->available())
+  {
+    DEBUG_PRINT_LN("UART Serial In");
+    bool command_available;
+  
+    dataRcvInProgress = true;
+    uartRcvInProgress = true;
+    while (serialPort->available()) {  
+      char ch = (char)serialPort->read();  // get the new byte
+  
+      // New improved command handling
+      command_available=buildCommand(ch, cmdString);  // build command line
+      if (command_available) 
+      {
+        parseCommand(cmdString);  // interpret the command
+      }
+    }
+    dataRcvInProgress = false;
+    uartRcvInProgress = false;
+    sei();
+  }
+#ifdef DEBUG
+  if (debugSerialPort->available())
+  {
+    // Prevent crosstalk.
+    if (uartRcvInProgress)
+      return;
+  
+    DEBUG_PRINT_LN("Debug Serial In");
+    bool command_available;
+  
+    dataRcvInProgress = true;
+    while (debugSerialPort->available()) {  
+      char ch = (char)debugSerialPort->read();  // get the new byte
+  
+      // New improved command handling
+      command_available=buildCommand(ch, cmdString);  // build command line
+      if (command_available) 
+      {
+        parseCommand(cmdString);  // interpret the command
+      }
+    }
+    dataRcvInProgress = false;
+    sei();
+  }
+#endif
+
 }
 
+/*
 void jawaSerialEvent() {
   DEBUG_PRINT_LN("UART Serial In");
   bool command_available;
@@ -2223,6 +2271,7 @@ void debugSerialEvent() {
   dataRcvInProgress = false;
   sei();
 }
+*/
 
 ////////////////////////////////////////////////////////
 // Command language - JawaLite emulation
