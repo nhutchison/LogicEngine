@@ -11,6 +11,7 @@ unsigned long prevFlipFlopMillis = 0;
 int statusFlipFlopTime = slowBlink;
 // Prevent updates to the LED's when getting data on serial
 bool dataRcvInProgress = false;
+bool uartRcvInProgress = false;
 
 
 ////

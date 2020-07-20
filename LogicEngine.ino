@@ -2179,8 +2179,8 @@ void jawaSerialEvent() {
   DEBUG_PRINT_LN("UART Serial In");
   bool command_available;
 
-
   dataRcvInProgress = true;
+  uartRcvInProgress = true;
   while (serialPort->available()) {  
     char ch = (char)serialPort->read();  // get the new byte
 
@@ -2192,10 +2192,15 @@ void jawaSerialEvent() {
     }
   }
   dataRcvInProgress = false;
+  uartRcvInProgress = true;
   sei();
 }
 
 void debugSerialEvent() {
+
+  // Prevent crosstalk.
+  if (uartRcvInProgress)
+    return;
 
   DEBUG_PRINT_LN("Debug Serial In");
   bool command_available;
