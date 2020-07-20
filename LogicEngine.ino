@@ -2171,8 +2171,14 @@ void serialEventRun(void)
 // Again this is needed for the Teensy to be able to receive commands
 // The Reactor does not need this.
 void serialEvent() {
+  if (serialPort->available()) jawaSerialEvent();
+  if (debugSerialPort->available()) debugSerialEvent();
+}
+
+void jawaSerialEvent() {
   DEBUG_PRINT_LN("UART Serial In");
   bool command_available;
+
 
   dataRcvInProgress = true;
   while (serialPort->available()) {  
