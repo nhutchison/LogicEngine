@@ -200,7 +200,7 @@ CRGBPalette16 paletteArray[MAX_PAL][3] = {
 // Used to track the current palette selected.
 uint8_t currentPalette[3] = {0,0,0};
 
-uint8_t UPDATES_PER_SECOND = 50; // The bigger this number the faster the blinkies blink.  Value between 1 and 200 // Default of 50.
+uint8_t UPDATES_PER_SECOND[3] = {50,50,50}; // The bigger this number the faster the blinkies blink.  Value between 1 and 200 // Default of 50.
 #define FRONT_COLOR_STEP 6  // Playing with this really changes how the blinkies look, smaller is "smoother"
 #define REAR_COLOR_STEP 3  // Playing with this really changes how the blinkies look, smaller is "smoother"
 

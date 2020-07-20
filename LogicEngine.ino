@@ -64,7 +64,7 @@
  *                    If xx is 0, turn the status LED off.
  *                    
  *                  If p is 5, Set the Palette
- *                    If xx is -1, select the nect palette
+ *                    If xx is -1, select the next palette
  *                    If xx is a number < MAX number of palettes, set the palette to that number
  *                    If xx is greater than MAX_Palettes, set the palette to the default (0)
  *                  
@@ -72,6 +72,10 @@
  *                    Setting xx to 0 will select English
  *                    Setting xx to 1 will select Aurabesh
  *                    (Note The rear Logic does not suppport Aurabesh due to the limited row height.
+ *                    
+ *                  If p is 7, Set the delay speed for hte blinkies.
+ *                    If xx is -1, set the speed to the default (50)
+ *                    Valid values are between 1 and 200
  *                  
  *                                          
  *                                       ***************************   
@@ -1026,7 +1030,7 @@ void randomBlinkies(int logicDisplay, int mode){
       DEBUG_PRINT_LN("Invalid Display address received");
     }
 
-    set_delay(logicDisplay, 1000 / UPDATES_PER_SECOND);
+    set_delay(logicDisplay, 1000 / UPDATES_PER_SECOND[logicDisplay-1]);
   }
 
   updateDisplays();
@@ -2773,7 +2777,10 @@ void doPcommand(int address, char* argument)
       if (value < 1) value = 1;
       if (value > 200) value = 200;
       DEBUG_PRINT("Setting speed to "); DEBUG_PRINT_LN(value);
-      UPDATES_PER_SECOND = value;
+      if(address == 0) UPDATES_PER_SECOND[0] = UPDATES_PER_SECOND[1] = UPDATES_PER_SECOND[2] = value;
+      if(address == FLD_TOP) UPDATES_PER_SECOND[0] = value;
+      if(address == FLD_BOTTOM) UPDATES_PER_SECOND[1] = value;
+      if(address == RLD) UPDATES_PER_SECOND[2] = value;
     default:
       break;
   }  
