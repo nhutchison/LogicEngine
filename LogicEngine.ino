@@ -1002,10 +1002,10 @@ void randomBlinkies(int logicDisplay, int mode){
       // quickly ... Update to be fully state driven!
       uint8_t maxChanges = 2;
       if (logicDisplay == FLD_TOP) {
-        nblendPaletteTowardPalette( frontCurrentPalette, frontTargetPalette, maxChanges);
+        nblendPaletteTowardPalette( frontTopCurrentPalette, frontTopTargetPalette, maxChanges);
       }
       else if (logicDisplay == FLD_BOTTOM) {
-        nblendPaletteTowardPalette( frontCurrentPalette, frontTargetPalette, maxChanges);
+        nblendPaletteTowardPalette( frontBotCurrentPalette, frontBotTargetPalette, maxChanges);
       }
       else if (logicDisplay == RLD) {
         nblendPaletteTowardPalette( rearCurrentPalette, rearTargetPalette, maxChanges);
@@ -1064,7 +1064,12 @@ void FillLEDsFromPaletteColors(int logicDisplay)
         if (chanceChange < PER_CHANGE_CHANCE) {
           ledIndex = bothFrontLedMatrix[i][y];
           if (ledIndex != -1) {
-            front_leds[ledIndex] = ColorFromPalette( frontTargetPalette, frontColorIndex[ledIndex]/* + sin8(count*32)*/, brightness, LINEARBLEND);
+            if (logicDisplay == FLD_TOP) {
+              front_leds[ledIndex] = ColorFromPalette( frontTopTargetPalette, frontColorIndex[ledIndex]/* + sin8(count*32)*/, brightness, LINEARBLEND);
+            }
+            else if (logicDisplay == FLD_BOTTOM) {
+              front_leds[ledIndex] = ColorFromPalette( frontBotTargetPalette, frontColorIndex[ledIndex]/* + sin8(count*32)*/, brightness, LINEARBLEND);
+            }
             // This is all about randomisation
             // We pick a random step size up to the MAX Step we allow.
             // All in the name of removing visible repeated patterning.
@@ -1109,13 +1114,13 @@ void ChangePalettePeriodically(int logicDisplay)
     if( secondHand ==  0)  { 
       if (logicDisplay == 3) rearTargetPalette = front_gp;
       } else {
-        frontTargetPalette = rear_gp;
+        frontTopTargetPalette = rear_gp;
       }
     if( secondHand == 10)  { 
       if (logicDisplay == 3) {
         rearTargetPalette = rear_gp; 
       } else {
-        frontTargetPalette = front_gp;
+        frontTopTargetPalette = front_gp;
       }
     }
   }
@@ -2735,8 +2740,8 @@ void doPcommand(int address, char* argument)
                 currentPalette[0] = currentPalette[1] = currentPalette[2] = value;
               }
               // Set the respective Target Palettes
-              frontTargetPalette = paletteArray[currentPalette[0]][0];
-              frontTargetPalette = paletteArray[currentPalette[1]][1];
+              frontTopTargetPalette = paletteArray[currentPalette[0]][0];
+              frontBotTargetPalette = paletteArray[currentPalette[1]][1];
               rearTargetPalette = paletteArray[currentPalette[2]][2];
               break;
           }
@@ -2756,7 +2761,7 @@ void doPcommand(int address, char* argument)
                 currentPalette[0] = value;
               }
               // Set the respective Target Palettes
-              frontTargetPalette = paletteArray[currentPalette[0]][0];
+              frontTopTargetPalette = paletteArray[currentPalette[0]][0];
               break;
           }
         }
@@ -2776,7 +2781,7 @@ void doPcommand(int address, char* argument)
                 currentPalette[1] = value;
               }
               // Set the respective Target Palettes
-              frontTargetPalette = paletteArray[currentPalette[1]][1];
+              frontBotTargetPalette = paletteArray[currentPalette[1]][1];
               break;
           }
         }

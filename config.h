@@ -182,8 +182,10 @@ DEFINE_GRADIENT_PALETTE( cyan_gp ) {
 230,   52, 235, 225,   //cyan
 255,   0,    0,    0 }; //black
 
-CRGBPalette16 frontTargetPalette( front_gp);
-CRGBPalette16 frontCurrentPalette( front_gp);
+CRGBPalette16 frontTopTargetPalette( front_gp);
+CRGBPalette16 frontTopCurrentPalette( front_gp);
+CRGBPalette16 frontBotTargetPalette( front_gp);
+CRGBPalette16 frontBotCurrentPalette( front_gp);
 CRGBPalette16 rearCurrentPalette( rear_gp);
 CRGBPalette16 rearTargetPalette( rear_gp);
 

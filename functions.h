@@ -39,7 +39,7 @@ void calcAveragePOT() {
     if (i == 0) POTReadings[0][POTIndex[i]] = map(analogRead(delayPin), 0, 1023, MIN_DELAY, MAX_DELAY);
     else if (i == 1) POTReadings[1][POTIndex[i]] = map(analogRead(fadePin), 0, 1023, 0, MAX_FADE);
     else if (i == 2) POTReadings[2][POTIndex[i]] = map(analogRead(briPin), 0, 1023, MIN_BRI, MAX_BRI);
-    else if (i == 3) POTReadings[3][POTIndex[i]] = map(analogRead(huePin), 0, 1023, 0, 255);
+    else if (i == 3) POTReadings[3][POTIndex[i]] = map(analogRead(huePin), 0, 1023, 0, MAX_PAL);
     POTSum[i] += POTReadings[i][POTIndex[i]];
   
     // Adjust the index so we maintain a circular buffer.
@@ -63,13 +63,13 @@ void checkTrimpots(bool startTrim = 0) {
     loopTrimpots[0] = getAveragePOT(0); //map(analogRead(delayPin), 0, 1023, MIN_DELAY, MAX_DELAY);
     loopTrimpots[1] = getAveragePOT(1); //map(analogRead(fadePin), 0, 1023, 0, MAX_FADE);
     loopTrimpots[2] = getAveragePOT(2); //map(analogRead(briPin), 0, 1023, MIN_BRI, MAX_BRI);//mySettings.maxBri);
-    loopTrimpots[3] = getAveragePOT(3); //map(analogRead(huePin), 0, 1023, 0, 255);
+    loopTrimpots[3] = getAveragePOT(3); //map(analogRead(huePin), 0, 1023, 0, MAX_PAL);
   }
   else {
     startTrimpots[0] = getAveragePOT(0);//map(analogRead(delayPin), 0, 1023, MIN_DELAY, MAX_DELAY);
     startTrimpots[1] = getAveragePOT(1);//map(analogRead(fadePin), 0, 1023, 0, MAX_FADE);
     startTrimpots[2] = getAveragePOT(2);//map(analogRead(briPin), 0, 1023, MIN_BRI, MAX_BRI);//mySettings.maxBri);
-    startTrimpots[3] = getAveragePOT(3);//map(analogRead(huePin), 0, 1023, 0, 255);
+    startTrimpots[3] = getAveragePOT(3);//map(analogRead(huePin), 0, 1023, 0, MAX_PAL);
   } 
   //DEBUG_PRINT("Brightness loop: "); DEBUG_PRINT_LN(loopTrimpots[2]);
   //DEBUG_PRINT("Brightness start: "); DEBUG_PRINT_LN(startTrimpots[2]);
@@ -124,7 +124,8 @@ void compareTrimpots(byte adjMode = 0) {
               DEBUG_PRINT_LN("Front Palette Changed");
               //mySettings.frontHue = map(loopTrimpots[x], 0, 1023, 0, 255); //if loopTrimpots were int's
               int temp_pal = map(loopTrimpots[x], 0, 1023, 0, MAX_PAL);
-              frontTargetPalette = paletteArray[currentPalette[0]][temp_pal];
+              frontTopTargetPalette = paletteArray[currentPalette[0]][temp_pal];
+              frontBotTargetPalette = paletteArray[currentPalette[0]][temp_pal];
               
               //mySettings.frontHue = loopTrimpots[x];
               //calcColors(mySettings.frontPalNum, 0);
@@ -281,7 +282,8 @@ int checkPalButton() {
     }
 
     // Set the respective Target Palettes
-    frontTargetPalette = paletteArray[currentPalette[0]][0];
+    frontTopTargetPalette = paletteArray[currentPalette[0]][0];
+    frontBotTargetPalette = paletteArray[currentPalette[1]][1];
     rearTargetPalette = paletteArray[currentPalette[2]][2];
     
     return (palPinLoops);
