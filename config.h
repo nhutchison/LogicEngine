@@ -73,6 +73,7 @@ uint8_t defaultPattern = 1; //Mode 1 is Random Blinkies
 ///
 
 #define NUM_FRONT_LEDS 80
+
 #ifdef RLD112
   #define NUM_REAR_LEDS 112
 #else
@@ -94,10 +95,12 @@ uint8_t defaultPattern = 1; //Mode 1 is Random Blinkies
 #elif defined(__SAMD21G18A__)
   #define FRONT_PIN 5
   #define REAR_PIN 3
-#ifdef RLD112  
-  #define REAR_DAT_PIN 11  // Used for the 112 LED version
-  #define REAR_CLK_PIN 3   // Used for the 112 LED version
-#endif
+  
+  #ifdef RLD112  
+    #define REAR_DAT_PIN 11  // Used for the 112 LED version
+    #define REAR_CLK_PIN 3   // Used for the 112 LED version
+  #endif
+  
   #define STATUSLED_PIN 8
   // POT and SWITCH PINS ....
   #define delayPin A0
@@ -204,12 +207,12 @@ CRGBPalette16 paletteArray[MAX_PAL][3] = {
 // Used to track the current palette selected.
 uint8_t currentPalette[3] = {0,0,0};
 
-uint8_t UPDATES_PER_SECOND[3] = {50,50,50}; // The bigger this number the faster the blinkies blink.  Value between 1 and 200 // Default of 50.
+uint8_t blinky_updates_per_sec[3] = {50,50,50}; // The bigger this number the faster the blinkies blink.  Value between 1 and 200 // Default of 50.
 #define FRONT_COLOR_STEP 6  // Playing with this really changes how the blinkies look, smaller is "smoother"
 #define REAR_COLOR_STEP 3  // Playing with this really changes how the blinkies look, smaller is "smoother"
 
 // Chance percentage of an LED changing
-#define PER_CHANGE_CHANCE 60
+uint8_t percentage_change_chance=60; // This is like the old fade...
 
 uint8_t frontColorIndex[NUM_FRONT_LEDS];
 uint8_t rearColorIndex[NUM_REAR_LEDS];
@@ -543,7 +546,7 @@ uint8_t STATUS_BRIGHTNESS=25; // set as uint8_t so it can be changed in code rea
 #define MAX_DELAY 500
 #define MIN_DELAY 10
 #define MIN_BRI 3 // Lower than 3 and some LED's won't light at certain colors.
-#define MAX_BRI 50 // Use this to control the max allowed.
+#define MAX_BRI 200 // Use this to control the max allowed.
 
 // Brightness control
 bool internalBrightness[3] = {false,false,false};

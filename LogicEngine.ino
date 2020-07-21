@@ -253,27 +253,10 @@ void fill_column(int logicDisplay, uint8_t column, CRGB color, uint8_t scale_bri
   RTCZero rtc;
 #endif
 
-
-////////////////////////////////////////
-//a structure to keep our settings in...
-typedef struct {
-  unsigned int writes; //keeps a count of how many times we've written settings to flash
-  uint8_t maxBri;
-  uint8_t frontTopDelay; uint8_t frontTopFade; uint8_t frontTopBri; uint8_t frontTopHue; uint8_t frontTopPalNum; uint8_t frontTopDesat;
-  uint8_t frontBotDelay; uint8_t frontBotFade; uint8_t frontBotBri; uint8_t frontBotHue; uint8_t frontBotPalNum; uint8_t frontBotDesat;
-  uint8_t rearDelay;     uint8_t rearFade;     uint8_t rearBri;     uint8_t rearHue;     uint8_t rearPalNum;     uint8_t rearDesat;
-  uint8_t frontScrollSpeed; uint8_t rearScrollSpeed;
-  uint8_t internalBrightness;
-  uint8_t statusLEDBrightness; bool statusLEDOn;
-} Settings;
-
-#if defined(__SAMD21G18A__)
-  // the Reactor Zero doesn't have EEPROM, so we use the FlashStorage library to store settings persistently in flash memory
-  #include <FlashStorage.h> //see StoreNameAndSurname example
-  FlashStorage(my_flash_store, Settings); // Reserve a portion of flash memory to store Settings
-  Settings mySettings;   //create a mySettings variable structure in SRAM
-  Settings tempSettings; //create a temporary variable structure in SRAM
-#endif 
+#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MK64FX512__) || defined(__MK66FX1M0__)
+// The Teensy does have an EEPROM, so store the structure in EEPROM.
+  #include "EEPROM.h"
+#endif
 
 // Function Prototypes
 /*
@@ -320,7 +303,6 @@ void setup() {
 
 #if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MK64FX512__) || defined(__MK66FX1M0__)
   // Teensy uses Serial 3 for UART.  No idea why Serial 3, but apparently it does!
-  
   Serial3.begin(BAUDRATE);
   serialPort = &Serial3;
 #elif defined(__SAMD21G18A__)
@@ -374,8 +356,12 @@ void setup() {
   if (digitalRead(RADJ_PIN) == 0 or digitalRead(FADJ_PIN) == 0) startAdjMode = 1; //adj switch isn't centered!
   pinMode(PAL_PIN, INPUT_PULLUP);  
 
+  // Load the settings from flash/EEPROM
+  loadSettings(false);
+
   // Setup Status LED
   statusLED[0] = CHSV(240,100,STATUS_BRIGHTNESS);
+  
   updateDisplays();
 }
 
@@ -1043,7 +1029,7 @@ void randomBlinkies(int logicDisplay, int mode){
       DEBUG_PRINT_LN("Invalid Display address received");
     }
 
-    set_delay(logicDisplay, 1000 / UPDATES_PER_SECOND[logicDisplay-1]);
+    set_delay(logicDisplay, 1000 / blinky_updates_per_sec[logicDisplay-1]);
   }
 
   updateDisplays();
@@ -1074,7 +1060,7 @@ void FillLEDsFromPaletteColors(int logicDisplay)
       for (int y=start_row; y<end_row; y++){
         // Use a Percentage chance that we update and LED.  Aaain, persuit of randomness!
         chanceChange = random(100);
-        if (chanceChange < PER_CHANGE_CHANCE) {
+        if (chanceChange < percentage_change_chance) {
           ledIndex = bothFrontLedMatrix[i][y];
           if (ledIndex != -1) {
             if (logicDisplay == FLD_TOP) {
@@ -1100,7 +1086,7 @@ void FillLEDsFromPaletteColors(int logicDisplay)
     for (int i=0; i< REAR_COL; i++){
       for (int y=0; y<REAR_ROW; y++){
         chanceChange = random(100);
-        if (chanceChange < PER_CHANGE_CHANCE) {
+        if (chanceChange < percentage_change_chance) {
           ledIndex = rearLedMatrix[i][y];
           if (ledIndex != -1) {
             rear_leds[ledIndex] = ColorFromPalette( rearTargetPalette, rearColorIndex[ledIndex]/* + sin8(count*32)*/, brightness, LINEARBLEND);
@@ -2015,6 +2001,10 @@ void loop() {
       for (int i=1;i<4;i++){
         runPattern(i,100);
       }
+
+      // Dunp out the current settings
+      printSettings();
+      
       startup = false; 
     }
 
@@ -2148,7 +2138,7 @@ void runPattern(int logicDisplay, int pattern) {
       break;           
     case 100:           //100 = Scroll Text (set by M command)
       //messageString[], logicDisplay, font, italic_slant, color) {
-      scrollMessage(logicText[logicDisplay-1], logicDisplay, alphabetType[logicDisplay-1], 1, fontColor[logicDisplay-1]);
+      scrollMessage(logicText[logicDisplay-1], logicDisplay, alphabetType[logicDisplay-1], activeSettings.rearScrollSlant, fontColor[logicDisplay-1]);
       break;      
     default:
       DEBUG_PRINT("Pattern "); DEBUG_PRINT(pattern); DEBUG_PRINT_LN(" not valid.  Ignoring");
@@ -2438,8 +2428,11 @@ void parseCommand(char* inputStr)
       if(!hasArgument) goto beep;       // invalid, no argument after command
       doTcommand(address, argument, timing);      
       break;
-    case 'D':                           // D command is weird, does not need an argument, ignore if it has one
-    case 'A':                           // A command does the same as D command, so just fall though.
+    case 'A':                           // D command is weird, does not need an argument, ignore if it has one
+      // Temp steal this command to print out the settings
+      printSettings();
+      break;
+    case 'D':                           // A command does the same as D command, so just fall though.
       doDcommand(address);
       break;
     case 'C':                           // Set the speed for the scrolling text.
@@ -2563,10 +2556,8 @@ void doDcommand(int address)
   DEBUG_PRINT_LN(address); 
   */
 
-  // Set the default scroll speed back to default. (75)
-  for (int i=0; i<3; i++){
-      scrollDelay[i] = 75;
-    }
+  // Reloads the default Device settings.
+  loadSettings(true);
   
   for (int i=1; i<4; i++) {
     runPattern(i, defaultPattern);
@@ -2589,16 +2580,17 @@ void doCcommand(int address, int argument)
     for (int i=0; i<3; i++){
       scrollDelay[i] = argument;
     }
+    activeSettings.frontTopScrollSpeed = activeSettings.frontBotScrollSpeed = activeSettings.rearScrollSpeed = argument;
   }
   
   // Else set the individual speeds.
   if (address == FLD_TOP)
   {
-    scrollDelay[0] = argument;
+    activeSettings.frontTopScrollSpeed = scrollDelay[0] = argument;
   }   else if (address == FLD_BOTTOM) {
-    scrollDelay[1] = argument;
+    activeSettings.frontBotScrollSpeed = scrollDelay[1] = argument;
   }  else if (address == RLD) {
-   scrollDelay[2] = argument;
+   activeSettings.rearScrollSpeed = scrollDelay[2] = argument;
   }
 }
 
@@ -2625,14 +2617,12 @@ void doPcommand(int address, char* argument)
       // Use either the external POT or internal brightness value
       if (value == 0){
         // Set the brightness using the POT
-        internalBrightness[0] = internalBrightness[1] = internalBrightness[2] = false;
-        //EEPROM.write(externalPOTAddress, 0);
+        activeSettings.internalBrightness = internalBrightness[0] = internalBrightness[1] = internalBrightness[2] = false;
         DEBUG_PRINT_LN("Use External POT ");
       }
       if (value == 1){
         // Set the brightness using the internal value.
-        internalBrightness[0] = internalBrightness[1] = internalBrightness[2] = true;
-        //EEPROM.write(externalPOTAddress, 1);
+        activeSettings.internalBrightness = internalBrightness[0] = internalBrightness[1] = internalBrightness[2] = true;
         DEBUG_PRINT_LN("Use internal Brightness setting ");
       }
       break;
@@ -2652,27 +2642,27 @@ void doPcommand(int address, char* argument)
 
       // Note Individual brightness is not yet supported, despite how this code appears ;)
       
-      if (value > 200) value = 200;
+      if (value > MAX_BRI) value = MAX_BRI;
 
       if (address == 0)
       {
         DEBUG_PRINT("Setting brightness for all logics to: ");
         globalBrightnessValue[0] = globalBrightnessValue[1] = globalBrightnessValue[2] = value;
+        activeSettings.frontTopBri = activeSettings.frontBotBri = activeSettings.rearBri = value;
       }
       if (address == FLD_TOP)
       {
         DEBUG_PRINT("Setting brightness for Front Top to: ");
-        globalBrightnessValue[0] = value;
+        activeSettings.frontTopBri = globalBrightnessValue[0] = value;
       }
       else if (address == FLD_BOTTOM) {
         DEBUG_PRINT("Setting brightness for Front Bottom to: ");
-        globalBrightnessValue[1] = value;
+        activeSettings.frontBotBri = globalBrightnessValue[1] = value;
       }
       else if (address == RLD) {
         DEBUG_PRINT("Setting brightness for Rear to: ");
-        globalBrightnessValue[2] = value;
+        activeSettings.rearBri = globalBrightnessValue[2] = value;
       }
-      //EEPROM.write(internalBrightnessAddress, globalBrightnessValue);
       
       DEBUG_PRINT_LN(value);
       break;
@@ -2731,12 +2721,12 @@ void doPcommand(int address, char* argument)
       if (value == 0) 
       {
         DEBUG_PRINT_LN("Turning off Status LED ");
-        STATUS_BRIGHTNESS = 0;
+        activeSettings.statusLEDBrightness = STATUS_BRIGHTNESS = 0;
         break;
       }
       if (value > 200) value = 200;
       if (value < MIN_STATUS_BRIGHTNESS) value = MIN_STATUS_BRIGHTNESS;
-      STATUS_BRIGHTNESS = value;
+      activeSettings.statusLEDBrightness = STATUS_BRIGHTNESS = value;
       DEBUG_PRINT("Setting brightness for Status LED to: "); DEBUG_PRINT_LN(value);
       break;
     case 5:
@@ -2752,6 +2742,9 @@ void doPcommand(int address, char* argument)
               if (currentPalette[0] == MAX_PAL) currentPalette[0] = 0;
               if (currentPalette[1] == MAX_PAL) currentPalette[1] = 0;
               if (currentPalette[2] == MAX_PAL) currentPalette[2] = 0;
+              activeSettings.frontTopPalNum = currentPalette[0];
+              activeSettings.frontBotPalNum = currentPalette[1];
+              activeSettings.rearPalNum = currentPalette[2];
 
               // Don't break here we want to fall through!
             default:
@@ -2759,6 +2752,7 @@ void doPcommand(int address, char* argument)
               {
                 if (value >= MAX_PAL) value = 0;
                 currentPalette[0] = currentPalette[1] = currentPalette[2] = value;
+                activeSettings.frontTopPalNum = activeSettings.frontBotPalNum = activeSettings.rearPalNum = value;
               }
               // Set the respective Target Palettes
               frontTopTargetPalette = paletteArray[currentPalette[0]][0];
@@ -2779,7 +2773,7 @@ void doPcommand(int address, char* argument)
               if (value != -1)
               {
                 if (value >= MAX_PAL) value = 0;
-                currentPalette[0] = value;
+                activeSettings.frontTopPalNum = currentPalette[0] = value;
               }
               // Set the respective Target Palettes
               frontTopTargetPalette = paletteArray[currentPalette[0]][0];
@@ -2799,7 +2793,7 @@ void doPcommand(int address, char* argument)
               if (value != -1)
               {
                 if (value >= MAX_PAL) value = 0;
-                currentPalette[1] = value;
+                activeSettings.frontBotPalNum = currentPalette[1] = value;
               }
               // Set the respective Target Palettes
               frontBotTargetPalette = paletteArray[currentPalette[1]][1];
@@ -2819,7 +2813,7 @@ void doPcommand(int address, char* argument)
               if (value != -1)
               {
                 if (value >= MAX_PAL) value = 0;
-                currentPalette[2] = value;
+                activeSettings.rearPalNum = currentPalette[2] = value;
               }
               // Set the respective Target Palettes
               rearTargetPalette = paletteArray[currentPalette[2]][2];
@@ -2832,17 +2826,23 @@ void doPcommand(int address, char* argument)
       // Language selection for scrolling text
       if (value == 0) {
         DEBUG_PRINT_LN("Select English");
-        if(address==0) {alphabetType[0]=alphabetType[1]=alphabetType[2]=LATIN;}
-        if(address==FLD_TOP) {alphabetType[0]=LATIN;}
-        if(address==FLD_BOTTOM) {alphabetType[1]=LATIN;}
-        if(address==RLD) {alphabetType[2]=LATIN;}
+        if(address==0) {
+          alphabetType[0] = alphabetType[1] = alphabetType[2] = LATIN;
+          activeSettings.frontTopScrollLang = activeSettings.frontBotScrollLang = activeSettings.rearScrollLang = LATIN;
+          }
+        if(address==FLD_TOP) {activeSettings.frontTopScrollLang = alphabetType[0] = LATIN;}
+        if(address==FLD_BOTTOM) {activeSettings.frontBotScrollLang = alphabetType[1] = LATIN;}
+        if(address==RLD) {activeSettings.rearScrollLang = alphabetType[2] = LATIN;}
       }
       else if (value == 1) {
         DEBUG_PRINT_LN("Select Aurebesh");
-        if(address==0) alphabetType[0]=alphabetType[1]=alphabetType[2]=AURABESH;
-        if(address==FLD_TOP) alphabetType[0]=AURABESH;
-        if(address==FLD_BOTTOM) alphabetType[1]=AURABESH;
-        if(address==RLD) alphabetType[2]=AURABESH;
+        if(address==0) {
+          alphabetType[0] = alphabetType[1] = alphabetType[2] = AURABESH;
+          activeSettings.frontTopScrollLang = activeSettings.frontBotScrollLang = activeSettings.rearScrollLang = AURABESH;
+        }
+        if(address==FLD_TOP) {activeSettings.frontTopScrollLang = alphabetType[0] = AURABESH;}
+        if(address==FLD_BOTTOM) {activeSettings.frontBotScrollLang = alphabetType[1] = AURABESH;}
+        if(address==RLD) {activeSettings.rearScrollLang = alphabetType[2] = AURABESH;}
       }
       break;
     case 7:
@@ -2852,10 +2852,26 @@ void doPcommand(int address, char* argument)
       if (value < 1) value = 1;
       if (value > 200) value = 200;
       DEBUG_PRINT("Setting speed to "); DEBUG_PRINT_LN(value);
-      if(address == 0) UPDATES_PER_SECOND[0] = UPDATES_PER_SECOND[1] = UPDATES_PER_SECOND[2] = value;
-      if(address == FLD_TOP) UPDATES_PER_SECOND[0] = value;
-      if(address == FLD_BOTTOM) UPDATES_PER_SECOND[1] = value;
-      if(address == RLD) UPDATES_PER_SECOND[2] = value;
+      if(address == 0) {
+        activeSettings.frontTopDelay = activeSettings.frontBotDelay = activeSettings.rearDelay = value;
+        blinky_updates_per_sec[0] = blinky_updates_per_sec[1] = blinky_updates_per_sec[2] = value;
+      }
+      if(address == FLD_TOP) {
+        activeSettings.frontTopDelay = blinky_updates_per_sec[0] = value;
+      }
+      if(address == FLD_BOTTOM) {
+        activeSettings.frontBotDelay = blinky_updates_per_sec[1] = value;
+      }
+      if(address == RLD) {
+        activeSettings.rearDelay = blinky_updates_per_sec[2] = value;
+      }
+    case 9:
+      // Doesn't matter what the value is here, we just write the data to the Flash!
+      DEBUG_PRINT("Saving current settings to device.");
+      // We update the counter so we can tell how many writes we've had.
+      activeSettings.writes++;
+      saveSettings();
+      break;
     default:
       break;
   }  
@@ -2882,8 +2898,58 @@ void doGcommand(int address, char* argument)
   DEBUG_PRINT("Is this valid: ");DEBUG_PRINT_LN(val);
   
   DEBUG_PRINT("Set Color 0x");DEBUG_PRINT_LN(val);
-  if(address==0) {fontColor[0]=fontColor[1]=fontColor[2]=val;}
-  if(address==1) {fontColor[0]=val;}
-  if(address==2) {fontColor[1]=val;}
-  if(address==3) {fontColor[2]=val;}  
+  if(address==0) {
+    fontColor[0]=fontColor[1]=fontColor[2]=val;
+    activeSettings.frontTopScrollColor = activeSettings.frontBotScrollColor = activeSettings.rearScrollColor = val;
+    }
+  if(address==1) {
+    activeSettings.frontTopScrollColor = fontColor[0]=val;
+    }
+  if(address==2) {
+    activeSettings.frontBotScrollColor = fontColor[1]=val;
+    }
+  if(address==3) {
+    activeSettings.rearScrollColor = fontColor[2]=val;
+    }  
+}
+
+void printSettings()
+{
+    DEBUG_PRINT("Total Flash Writes: "); DEBUG_PRINT_LN(activeSettings.writes);
+    DEBUG_PRINT("Max Brightness: "); DEBUG_PRINT_LN(activeSettings.maxBri);
+    DEBUG_PRINT("FTL Delay: "); DEBUG_PRINT_LN(activeSettings.frontTopDelay);
+    DEBUG_PRINT("FTL Fade: "); DEBUG_PRINT_LN(activeSettings.frontTopFade);
+    DEBUG_PRINT("FTL Brightness: "); DEBUG_PRINT_LN(activeSettings.frontTopBri);
+    DEBUG_PRINT("FTL Hue: "); DEBUG_PRINT_LN(activeSettings.frontTopHue);
+    DEBUG_PRINT("FTL Pal Num: "); DEBUG_PRINT_LN(activeSettings.frontTopPalNum);
+    DEBUG_PRINT("FTL Saturation: "); DEBUG_PRINT_LN(activeSettings.frontTopDesat);
+    
+    DEBUG_PRINT("FBL Delay: "); DEBUG_PRINT_LN(activeSettings.frontBotDelay);
+    DEBUG_PRINT("FBL Fade: "); DEBUG_PRINT_LN(activeSettings.frontBotFade);
+    DEBUG_PRINT("FBL Brightness: "); DEBUG_PRINT_LN(activeSettings.frontBotBri);
+    DEBUG_PRINT("FBL Hue: "); DEBUG_PRINT_LN(activeSettings.frontBotHue);
+    DEBUG_PRINT("FBL Pal Num: "); DEBUG_PRINT_LN(activeSettings.frontBotPalNum);
+    DEBUG_PRINT("FBL Saturation: "); DEBUG_PRINT_LN(activeSettings.frontBotDesat);
+    
+    DEBUG_PRINT("RLD Delay: "); DEBUG_PRINT_LN(activeSettings.rearDelay);
+    DEBUG_PRINT("RLD Fade: "); DEBUG_PRINT_LN(activeSettings.rearFade);
+    DEBUG_PRINT("RLD Brightness: "); DEBUG_PRINT_LN(activeSettings.rearBri);
+    DEBUG_PRINT("RLD Hue: "); DEBUG_PRINT_LN(activeSettings.rearHue);
+    DEBUG_PRINT("RLD Pal Num: "); DEBUG_PRINT_LN(activeSettings.rearPalNum);
+    DEBUG_PRINT("RLD Saturation: "); DEBUG_PRINT_LN(activeSettings.rearDesat);
+    
+    DEBUG_PRINT("FTL Scroll Speed: "); DEBUG_PRINT_LN(activeSettings.frontTopScrollSpeed);
+    DEBUG_PRINT("FBL Scroll Speed: "); DEBUG_PRINT_LN(activeSettings.frontBotScrollSpeed);
+    DEBUG_PRINT("RLD Scroll Speed: "); DEBUG_PRINT_LN(activeSettings.rearScrollSpeed);
+    DEBUG_PRINT("FTL Scroll Color: "); DEBUG_PRINT_LN(activeSettings.frontTopScrollColor);
+    DEBUG_PRINT("FBL Scroll Color: "); DEBUG_PRINT_LN(activeSettings.frontBotScrollColor);
+    DEBUG_PRINT("RLD Scroll Color: "); DEBUG_PRINT_LN(activeSettings.rearScrollColor);
+    DEBUG_PRINT("FTL Scroll Lang: "); DEBUG_PRINT_LN(activeSettings.frontTopScrollLang);
+    DEBUG_PRINT("FBL Scroll Lang: "); DEBUG_PRINT_LN(activeSettings.frontBotScrollLang);
+    DEBUG_PRINT("RLD Scroll Lang: "); DEBUG_PRINT_LN(activeSettings.rearScrollLang);
+    DEBUG_PRINT("RLD Scroll Slant: "); DEBUG_PRINT_LN(activeSettings.rearScrollSlant);
+    
+    DEBUG_PRINT("Intern Brightness: "); DEBUG_PRINT_LN(activeSettings.internalBrightness);
+    DEBUG_PRINT("Status Brightness: "); DEBUG_PRINT_LN(activeSettings.statusLEDBrightness);
+
 }
