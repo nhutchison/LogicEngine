@@ -77,6 +77,8 @@
  *                  If p is 7, Set the delay speed for hte blinkies.
  *                    If xx is -1, set the speed to the default (50)
  *                    Valid values are between 1 and 200
+ *                    
+ *                  if p is 9, write the current setting to the device, so they will be restored on power up.
  *                  
  *                                          
  *                                       ***************************   

@@ -26,13 +26,21 @@ typedef struct {
   uint8_t statusLEDBrightness;
 } Settings;
 
+// We can use this to change where in EEPROM we write for the TEENSY.
+#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MK64FX512__) || defined(__MK66FX1M0__)
+  #define EEPROM_base_addr = 0;
+#endif
+
 #if defined(__SAMD21G18A__)
   // the Reactor Zero doesn't have EEPROM, so we use the FlashStorage library to store settings persistently in flash memory
   #include <FlashStorage.h>
   FlashStorage(my_flash_store, Settings); // Reserve a portion of flash memory to store Settings
-  Settings activeSettings;   //create an working copy of the variable structure in SRAM
-  Settings tempSettings; //create a temporary variable structure in SRAM
 #endif 
+
+// We need these regardless of the board type!
+Settings activeSettings;   //create an working copy of the variable structure in SRAM
+Settings tempSettings; //create a temporary variable structure in SRAM
+
 
 ///
 // status LED related...
@@ -186,15 +194,6 @@ void compareTrimpots(byte adjMode = 0) {
   
 }
 
-// TODO
-void saveSettings() {
-  #if defined(__SAMD21G18A__)
-    my_flash_store.write(activeSettings);
-  #elif defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MK64FX512__) || defined(__MK66FX1M0__)
-    // have to add this ...
-  #endif
-}
-
 //TODO - This code from Paul seems unreliable.
 // The state stracking isn't right such that if you set the switch to "front" then center, then front, 
 // it doesn't go back into fast blinky mode.  Need to look at this more closely.
@@ -319,11 +318,24 @@ int checkPalButton() {
   prevPalPinStatus = palPinStatus;
 }
 
-#if defined(__SAMD21G18A__)
+
+void saveSettings() {
+  #if defined(__SAMD21G18A__)
+    my_flash_store.write(activeSettings);
+  #elif defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MK64FX512__) || defined(__MK66FX1M0__)
+    EEPROM.put(EEPROM_base_addr, activeSettings);
+  #endif
+}
+
 void loadSettings(bool resetSettings=false) {
 
+#if defined(__SAMD21G18A__)
   // Read the flash into a temp storage, so we can parse it, and set valid things.
   tempSettings = my_flash_store.read();
+#elif defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MK64FX512__) || defined(__MK66FX1M0__)
+  // Read the EEPROM into a temp storage so we can parse it ...
+  tempSettings = EEPROM.read(EEPROM_base_addr);
+#endif
 
   DEBUG_PRINT_LN("****************************************");
   DEBUG_PRINT("** Settings written ");DEBUG_PRINT(tempSettings.writes);DEBUG_PRINT_LN(" times so far **");
@@ -442,12 +454,6 @@ void loadSettings(bool resetSettings=false) {
     rearTargetPalette = paletteArray[currentPalette[2]][2];
   }
 }
-#elif defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MK64FX512__) || defined(__MK66FX1M0__)
-// ADD EEPROM VERSION
-void loadSettings(bool resetSettings=false) {
-  
-}
-#endif
 
 
 /*
