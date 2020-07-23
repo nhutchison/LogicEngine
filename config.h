@@ -482,6 +482,10 @@ uint8_t rearVULedMatrixRight[REAR_COL+2][REAR_ROW] = {
 #define LATIN 1
 #define AURABESH 2
 
+uint8_t scrollCount[3] = {0,0,0};
+uint8_t currentCharShiftsRemaining[3] = {0,0,0};
+uint8_t totalShiftsForChar[3] = {0,0,0};
+uint8_t totalScrolls[3] = {1,1,1};
 unsigned long scrollDelay[3] = {75,75,75};   // adjust scrolling speed
 unsigned long bufferLong [3][10] = {0,0,0};
 uint8_t alphabetType[3] = {LATIN,LATIN,LATIN}; // Stores the font for either English or Aurebesh

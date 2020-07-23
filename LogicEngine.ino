@@ -230,15 +230,6 @@ uint8_t hue = 0;
 uint8_t front_cnt = 0;
 uint8_t rear_cnt = 0;
 
-
-///
-// Scrolling text stuff
-///
-uint8_t scrollCount[3] = {0,0,0};
-uint8_t currentCharShiftsRemaining[3] = {0,0,0};
-uint8_t totalShiftsForChar[3] = {0,0,0};
-//bool scrollDisplayFirstTime[3] = {false};
-
 // Function prototype for helper functions
 void fill_row(int logicDisplay, uint8_t row, CRGB color, uint8_t scale_brightness=0);
 void fill_column(int logicDisplay, uint8_t column, CRGB color, uint8_t scale_brightness=0);
@@ -1717,7 +1708,7 @@ void setText(int logicDisplay, const char* message)
 //                        1 - Front Top, 
 //                        2 - Front Bottom,
 //                        3 - Rear
-void scrollMessage(char messageString[], int logicDisplay, int font, int italic_slant, CRGB color) {
+void scrollMessage(char messageString[], int logicDisplay, int font, int italic_slant, CRGB color, uint8_t scrollNum) {
 
   // setup first time stuff
   if (firstTime[logicDisplay-1]) {
@@ -1733,11 +1724,11 @@ void scrollMessage(char messageString[], int logicDisplay, int font, int italic_
     // Rear buffer has it's own display buffer, so we need to clear that out too!
     for (int i=0; i<REAR_ROW; i++) rearTextBuffer[i] = 0;
     
-
     // Clear out the counters
     currentCharShiftsRemaining[logicDisplay-1] = 0;
     totalShiftsForChar[logicDisplay-1] = 0;
     scrollCount[logicDisplay-1] = 0;
+    scrollNum ? totalScrolls[logicDisplay-1] = scrollNum - 1 : totalScrolls[logicDisplay-1] = 0;
     
     DEBUG_PRINT("Logic  ");DEBUG_PRINT(logicDisplay);DEBUG_PRINT(": String Length "); DEBUG_PRINT_LN(strlen((const char*)messageString));
   }
@@ -1761,6 +1752,17 @@ void scrollMessage(char messageString[], int logicDisplay, int font, int italic_
       }
       // This is the end of the message.  Add the display width to the scroll shifts remaining
       // so that the message scrolls off the screen nicely without needing extra spaces.
+//      if ((scrollCount[logicDisplay-1] == strlen((const char*)messageString)) && 
+//            (currentCharShiftsRemaining[logicDisplay-1] == totalShiftsForChar[logicDisplay-1]) &&
+//            totalScrolls[logicDisplay-1]
+//          ){
+//            totalScrolls[logicDisplay-1]--;
+//            scrollCount[logicDisplay-1] = 0;
+//            currentCharShiftsRemaining[logicDisplay-1] = 0;
+//            totalShiftsForChar[logicDisplay-1] = 0;
+//          }
+      
+        
       if ((scrollCount[logicDisplay-1] == strlen((const char*)messageString)) && 
           (currentCharShiftsRemaining[logicDisplay-1] == totalShiftsForChar[logicDisplay-1])){
         //DEBUG_PRINT_LN("Last character, adjusting shifts");
@@ -1771,12 +1773,17 @@ void scrollMessage(char messageString[], int logicDisplay, int font, int italic_
           totalShiftsForChar[logicDisplay-1] += REAR_COL;
           currentCharShiftsRemaining[logicDisplay-1] += REAR_COL;
         }
+        if (totalScrolls[logicDisplay-1]){
+          totalScrolls[logicDisplay-1]--;
+          scrollCount[logicDisplay-1] = 0;
+        }
+        
       }
     } else {
       // Rotate the current character until we need to load a new character
       if (currentCharShiftsRemaining[logicDisplay-1]) {
         //DEBUG_PRINT_LN("Rotating Character");
-        //DEBUG_PRINT("Char Width Rem: "); DEBUG_PRINT_LN(currentCharShiftsRemaining[logicDisplay]);
+        //DEBUG_PRINT("Char Width Rem: "); DEBUG_PRINT_LN(currentCharShiftsRemaining[logicDisplay-1]);
         // Move the pixels
         shiftBuffer(logicDisplay);
         currentCharShiftsRemaining[logicDisplay-1]--;
@@ -2001,7 +2008,7 @@ void loop() {
 
     if (startup) {
       for (int i=1;i<4;i++){
-        runPattern(i,100);
+        runPattern(i,255);
       }
 
       // Dunp out the current settings
@@ -2136,12 +2143,16 @@ void runPattern(int logicDisplay, int pattern) {
       VUMeter(logicDisplay, 250, 0, 0);  
     case 99:           //100 = Scroll Text (set by M command)
       //messageString[], logicDisplay, font, italic_slant, color) {
-      scrollMessage(logicText[logicDisplay-1], logicDisplay, 2, 1, fontColor[logicDisplay-1]);
+      scrollMessage(logicText[logicDisplay-1], logicDisplay, 2, 1, fontColor[logicDisplay-1], 3);
       break;           
     case 100:           //100 = Scroll Text (set by M command)
-      //messageString[], logicDisplay, font, italic_slant, color) {
-      scrollMessage(logicText[logicDisplay-1], logicDisplay, alphabetType[logicDisplay-1], activeSettings.rearScrollSlant, fontColor[logicDisplay-1]);
+      // We loop 1000 times, which allows the MArcDuino to Keep scrolling the message until it sends the "end" command.
+      scrollMessage(logicText[logicDisplay-1], logicDisplay, alphabetType[logicDisplay-1], activeSettings.rearScrollSlant, fontColor[logicDisplay-1], 1000);
       break;      
+     case 255:           //Used for the Startup Message.
+      //messageString[], logicDisplay, font, italic_slant, color) {
+      scrollMessage(logicText[logicDisplay-1], logicDisplay, alphabetType[logicDisplay-1], activeSettings.rearScrollSlant, fontColor[logicDisplay-1], 1);
+      break; 
     default:
       DEBUG_PRINT("Pattern "); DEBUG_PRINT(pattern); DEBUG_PRINT_LN(" not valid.  Ignoring");
       lastEventCode[logicDisplay-1] = currentPattern;
@@ -2243,53 +2254,6 @@ void serialEvent() {
 #endif
 
 }
-
-/*
-void jawaSerialEvent() {
-  DEBUG_PRINT_LN("UART Serial In");
-  bool command_available;
-
-  dataRcvInProgress = true;
-  uartRcvInProgress = true;
-  while (serialPort->available()) {  
-    char ch = (char)serialPort->read();  // get the new byte
-
-    // New improved command handling
-    command_available=buildCommand(ch, cmdString);  // build command line
-    if (command_available) 
-    {
-      parseCommand(cmdString);  // interpret the command
-    }
-  }
-  dataRcvInProgress = false;
-  uartRcvInProgress = true;
-  sei();
-}
-
-void debugSerialEvent() {
-
-  // Prevent crosstalk.
-  if (uartRcvInProgress)
-    return;
-
-  DEBUG_PRINT_LN("Debug Serial In");
-  bool command_available;
-
-  dataRcvInProgress = true;
-  while (debugSerialPort->available()) {  
-    char ch = (char)debugSerialPort->read();  // get the new byte
-
-    // New improved command handling
-    command_available=buildCommand(ch, cmdString);  // build command line
-    if (command_available) 
-    {
-      parseCommand(cmdString);  // interpret the command
-    }
-  }
-  dataRcvInProgress = false;
-  sei();
-}
-*/
 
 ////////////////////////////////////////////////////////
 // Command language - JawaLite emulation
