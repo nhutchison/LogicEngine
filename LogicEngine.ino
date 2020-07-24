@@ -82,8 +82,12 @@
  *                    Setting xx to 1 will select Aurabesh
  *                    (Note The rear Logic does not suppport Aurabesh due to the limited row height.
  *                    
- *                  If p is 7, Set the delay speed for hte blinkies.
+ *                  If p is 7, Set the delay speed for the blinkies.
  *                    If xx is -1, set the speed to the default (50)
+ *                    Valid values are between 1 and 200
+ *                    
+ *                  If p is 8, Set the fade speed for the blinkies.
+ *                    If xx is -1, set the speed to the default (60)
  *                    Valid values are between 1 and 200
  *                    
  *                  if p is 9, write the current setting to the device, so they will be restored on power up.
@@ -1075,7 +1079,7 @@ void FillLEDsFromPaletteColors(int logicDisplay)
       for (int y=start_row; y<end_row; y++){
         // Use a Percentage chance that we update and LED.  Aaain, persuit of randomness!
         chanceChange = random(100);
-        if (chanceChange < percentage_change_chance) {
+        if (chanceChange < activeSettings.frontTopFade) {
           ledIndex = bothFrontLedMatrix[i][y];
           if (ledIndex != -1) {
             if (logicDisplay == FLD_TOP) {
@@ -1118,7 +1122,7 @@ void FillLEDsFromPaletteColors(int logicDisplay)
     for (int i=0; i< REAR_COL; i++){
       for (int y=0; y<REAR_ROW; y++){
         chanceChange = random(100);
-        if (chanceChange < percentage_change_chance) {
+        if (chanceChange < activeSettings.rearFade) {
           ledIndex = rearLedMatrix[i][y];
           if (ledIndex != -1) {
             rear_leds[ledIndex] = ColorFromPalette( rearTargetPalette, rearColorIndex[ledIndex]/* + sin8(count*32)*/, brightness, LINEARBLEND);
@@ -2867,6 +2871,27 @@ void doPcommand(int address, char* argument)
       if(address == RLD) {
         activeSettings.rearDelay = blinky_updates_per_sec[2] = value;
       }
+      break;
+    case 8:
+      // Change the Fade speed for the blinkies
+      // Valid values between 1 and 100
+      if (value == -1) value = 60; // Reset to default.
+      if (value < 1) value = 1;
+      if (value > 100) value = 1000;
+      DEBUG_PRINT("Setting fade to "); DEBUG_PRINT_LN(value);
+      if(address == 0) {
+        activeSettings.frontTopFade = activeSettings.frontBotFade = activeSettings.rearFade = value;
+      }
+      if(address == FLD_TOP) {
+        activeSettings.frontTopFade = value;
+      }
+      if(address == FLD_BOTTOM) {
+        activeSettings.frontBotFade = value;
+      }
+      if(address == RLD) {
+        activeSettings.rearFade = value;
+      }
+      break;
     case 9:
       // Doesn't matter what the value is here, we just write the data to the Flash!
       DEBUG_PRINT_LN("Check if settings need to be saved...");

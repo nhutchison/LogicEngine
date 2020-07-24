@@ -217,7 +217,7 @@ uint8_t blinky_updates_per_sec[3] = {50,50,50}; // The bigger this number the fa
 #define REAR_COLOR_STEP 3  // Playing with this really changes how the blinkies look, smaller is "smoother"
 
 // Chance percentage of an LED changing
-uint8_t percentage_change_chance=60; // This is like the old fade...
+//uint8_t percentage_change_chance=60; // This is like the old fade...
 
 uint8_t frontColorIndex[NUM_FRONT_LEDS];
 uint8_t rearColorIndex[NUM_REAR_LEDS];

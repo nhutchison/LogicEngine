@@ -156,7 +156,7 @@ void compareTrimpots(byte adjMode = 0) {
             else if (x == 1) 
             {
               DEBUG_PRINT_LN("Front Fade Changed");
-              percentage_change_chance = activeSettings.frontTopFade = activeSettings.frontBotFade = map(loopTrimpots[x], 0, 1023, 0, 100);
+              activeSettings.frontTopFade = activeSettings.frontBotFade = map(loopTrimpots[x], 0, 1023, 0, 100);
             }
             else if (x == 2) {
               DEBUG_PRINT_LN("Front Brightness Changed");
@@ -176,7 +176,7 @@ void compareTrimpots(byte adjMode = 0) {
             }
             else if (x == 1) {
               DEBUG_PRINT_LN("Rear Fade Changed");
-              percentage_change_chance = activeSettings.rearFade = map(loopTrimpots[x], 0, 1023, 0, 100);
+              activeSettings.rearFade = map(loopTrimpots[x], 0, 1023, 0, 100);
             }
             else if (x == 2) {
               DEBUG_PRINT_LN("Rear Brightness Changed");
@@ -369,7 +369,7 @@ void loadSettings(bool resetSettings=false) {
 
     activeSettings.maxBri = MAX_BRI;
     activeSettings.frontTopDelay = blinky_updates_per_sec[0] = 50;
-    activeSettings.frontTopFade = percentage_change_chance = 60;
+    activeSettings.frontTopFade = 60;
     // Here we load the internal brightness value, but will only use that if the internal brightness
     // control is set.  Otherwise, the POT will be used.
     activeSettings.frontTopBri = internalBrightness[0] = 10; // Initially set pretty low.  // Only this one is used!
@@ -378,14 +378,14 @@ void loadSettings(bool resetSettings=false) {
     activeSettings.frontTopDesat = 0; // Not used.
     
     activeSettings.frontBotDelay = blinky_updates_per_sec[1] = 50;
-    activeSettings.frontBotFade = percentage_change_chance = 60;
+    activeSettings.frontBotFade = 60;
     activeSettings.frontBotBri = internalBrightness[1] = 10; // Initially set pretty low.
     activeSettings.frontBotHue = 0; // Not Used.
     activeSettings.frontBotPalNum = currentPalette[1] = 0;
     activeSettings.frontBotDesat = 0; // Not used.
     
     activeSettings.rearDelay = blinky_updates_per_sec[2] = 50;
-    activeSettings.rearFade = percentage_change_chance = 60;
+    activeSettings.rearFade = 60;
     activeSettings.rearBri = internalBrightness[2] = 10; // Initially set pretty low.
     activeSettings.rearHue = 0; // Not Used.
     activeSettings.rearPalNum = currentPalette[2] = 0;
@@ -424,7 +424,7 @@ void loadSettings(bool resetSettings=false) {
 
     // TOP FLD Settings
     blinky_updates_per_sec[0] = activeSettings.frontTopDelay = tempSettings.frontTopDelay;
-    percentage_change_chance = activeSettings.frontTopFade = tempSettings.frontTopFade;
+    activeSettings.frontTopFade = tempSettings.frontTopFade;
     // Here we load the internal brightness value, but will only use that if the internal brightness
     // control is set.  Otherwise, the POT will be used.
     internalBrightness[0] = activeSettings.frontTopBri = tempSettings.frontTopBri; // Only this one is used currently!
@@ -434,7 +434,7 @@ void loadSettings(bool resetSettings=false) {
 
     // Bottom FLD Settings
     blinky_updates_per_sec[1] = activeSettings.frontBotDelay = tempSettings.frontBotDelay;
-    percentage_change_chance = activeSettings.frontBotFade = tempSettings.frontBotFade;
+    activeSettings.frontBotFade = tempSettings.frontBotFade;
     internalBrightness[1] = activeSettings.frontBotBri = tempSettings.frontBotBri;
     activeSettings.frontBotHue = tempSettings.frontBotHue; // Not Used.
     currentPalette[1] = activeSettings.frontBotPalNum = tempSettings.frontBotPalNum;
@@ -442,7 +442,7 @@ void loadSettings(bool resetSettings=false) {
 
     // Setup the Rear Display Settings
     blinky_updates_per_sec[2] = activeSettings.rearDelay = tempSettings.rearDelay;
-    percentage_change_chance = activeSettings.rearFade = tempSettings.rearFade;
+    activeSettings.rearFade = tempSettings.rearFade;
     internalBrightness[2] = activeSettings.rearBri = tempSettings.rearBri;
     activeSettings.rearHue = tempSettings.rearHue; // Not Used.
     currentPalette[2] = activeSettings.rearPalNum = tempSettings.rearPalNum;
