@@ -2869,9 +2869,7 @@ void doPcommand(int address, char* argument)
       }
     case 9:
       // Doesn't matter what the value is here, we just write the data to the Flash!
-      DEBUG_PRINT("Saving current settings to device.");
-      // We update the counter so we can tell how many writes we've had.
-      activeSettings.writes++;
+      DEBUG_PRINT_LN("Check if settings need to be saved...");
       saveSettings();
       break;
     default:
@@ -2953,5 +2951,10 @@ void printSettings()
     
     DEBUG_PRINT("Intern Brightness: "); DEBUG_PRINT_LN(activeSettings.internalBrightness);
     DEBUG_PRINT("Status Brightness: "); DEBUG_PRINT_LN(activeSettings.statusLEDBrightness);
+
+    // Now let's just check against what's in Flash so we can report that too ;)
+    // It's only dine for the REactor Zero, since that's the board that has no EEPROM
+    DEBUG_PRINT("Data changed from flash stored version: "); 
+    settingsChanged() ? DEBUG_PRINT_LN("YES") : DEBUG_PRINT_LN("NO");
 
 }

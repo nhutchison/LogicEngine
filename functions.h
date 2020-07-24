@@ -61,6 +61,7 @@ bool uartRcvInProgress = false;
 // Function Prototypes
 ////
 void setStatusLED(uint8_t mode=0, unsigned long delay=250, uint8_t loops=2);
+bool settingsChanged();
 
 // Brightness control
 // This is where we'll read from the pot, etc
@@ -321,11 +322,21 @@ int checkPalButton() {
 
 
 void saveSettings() {
-  #if defined(__SAMD21G18A__)
-    my_flash_store.write(activeSettings);
-  #elif defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MK64FX512__) || defined(__MK66FX1M0__)
-    EEPROM.put(EEPROM_base_addr, activeSettings);
-  #endif
+    // We check to see if things have changed and only write if they have.
+    // This minimises any un-necessary writes to the flash, preserving its life.
+    if (settingsChanged()){
+      DEBUG_PRINT_LN("Writing settings to Flash");
+      // We update the counter so we can tell how many writes we've had.
+      activeSettings.writes++;
+      #if defined(__SAMD21G18A__)
+        my_flash_store.write(activeSettings);
+      #elif defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MK64FX512__) || defined(__MK66FX1M0__)
+        EEPROM.put(EEPROM_base_addr, activeSettings);
+      #endif
+    }
+    else {
+      DEBUG_PRINT_LN("No settings changed.  No need to write to flash");
+    }
 }
 
 void loadSettings(bool resetSettings=false) {
@@ -460,6 +471,64 @@ void loadSettings(bool resetSettings=false) {
   }
 }
 
+
+// This is a helper function to check whether the current active settings have changed
+// from those stored in the flash.  
+// In EEPROM (Teensy) this already exists using EEPROM.put() but it doesn't exist in
+// the flashStorage.h, so I'm writing my own :)
+// The function will return false if nothing has changed (so no need to write)
+// or true if something has changed so we should update.
+bool settingsChanged() {
+
+#if defined(__SAMD21G18A__)
+  // Grab a copy of what is currently in Flash.
+  tempSettings = my_flash_store.read();
+#elif defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MK64FX512__) || defined(__MK66FX1M0__)
+  tempSettings = EEPROM.read(EEPROM_base_addr);
+#endif
+
+  // We don't compare the number of writes, since it's changed when we write and isn't a setting ;)
+  //    activeSettings.writes
+  if (tempSettings.maxBri != activeSettings.maxBri) return true;
+  if (tempSettings.maxBri != activeSettings.maxBri) return true;
+  if (tempSettings.frontTopDelay != activeSettings.frontTopDelay) return true;
+  if (tempSettings.frontTopFade != activeSettings.frontTopFade) return true;
+  if (tempSettings.frontTopBri != activeSettings.frontTopBri) return true;
+  if (tempSettings.frontTopHue != activeSettings.frontTopHue) return true;
+  if (tempSettings.frontTopPalNum != activeSettings.frontTopPalNum) return true;
+  if (tempSettings.frontTopDesat != activeSettings.frontTopDesat) return true;
+  
+  if (tempSettings.frontBotDelay != activeSettings.frontBotDelay) return true;
+  if (tempSettings.frontBotFade != activeSettings.frontBotFade) return true;
+  if (tempSettings.frontBotBri != activeSettings.frontBotBri) return true;
+  if (tempSettings.frontBotHue != activeSettings.frontBotHue) return true;
+  if (tempSettings.frontBotPalNum != activeSettings.frontBotPalNum) return true;
+  if (tempSettings.frontBotDesat != activeSettings.frontBotDesat) return true;
+  
+  if (tempSettings.rearDelay != activeSettings.rearDelay) return true;
+  if (tempSettings.rearFade != activeSettings.rearFade) return true;
+  if (tempSettings.rearBri != activeSettings.rearBri) return true;
+  if (tempSettings.rearHue != activeSettings.rearHue) return true;
+  if (tempSettings.rearPalNum != activeSettings.rearPalNum) return true;
+  if (tempSettings.rearDesat != activeSettings.rearDesat) return true;
+  
+  if (tempSettings.frontTopScrollSpeed != activeSettings.frontTopScrollSpeed) return true;
+  if (tempSettings.frontBotScrollSpeed != activeSettings.frontBotScrollSpeed) return true;
+  if (tempSettings.rearScrollSpeed != activeSettings.rearScrollSpeed) return true;
+  if (tempSettings.frontTopScrollColor != activeSettings.frontTopScrollColor) return true;
+  if (tempSettings.frontBotScrollColor != activeSettings.frontBotScrollColor) return true;
+  if (tempSettings.rearScrollColor != activeSettings.rearScrollColor) return true;
+  if (tempSettings.frontTopScrollLang != activeSettings.frontTopScrollLang) return true;
+  if (tempSettings.frontBotScrollLang != activeSettings.frontBotScrollLang) return true;
+  if (tempSettings.rearScrollLang != activeSettings.rearScrollLang) return true;
+  if (tempSettings.rearScrollSlant != activeSettings.rearScrollSlant) return true;
+  
+  if (tempSettings.internalBrightness != activeSettings.internalBrightness) return true;
+  if (tempSettings.statusLEDBrightness != activeSettings.statusLEDBrightness) return true;
+
+  return false;
+  
+}
 
 /*
  * 
