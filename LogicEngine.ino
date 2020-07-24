@@ -47,6 +47,13 @@
  *                  Each Logic can be addressed independently by specifying the address with @
  *                  Specifying an address of 0 will make the change for all addressed displays as noted below.
  *                  
+ *                  If p is 1, change the source for the brightness setting
+ *                    The default setting is to use the POT for brightness
+ *                    If x is 0, use the POT
+ *                    If x is 1, use the internal value which is set using P2xxx
+ *                    eg  @0P10 will change to using the external POT
+ *                        @0P11 will change to using the internal value
+ *                  
  *                  If p is 2, Set the internal brightness value, overriding the POT.
  *                    The default setting is that brightness is 20.
  *                    xxx is a value between 0 (off) and 255 (max brightness) Values over 200 
@@ -62,6 +69,7 @@
  *                    
  *                  If p is 4, Set the brightness for the Status LED.
  *                    If xx is 0, turn the status LED off.
+ *                    Valid values are between 0 and 100 (It's a %age of max brightness!)
  *                    
  *                  If p is 5, Set the Palette
  *                    If xx is -1, select the next palette
@@ -352,8 +360,15 @@ void setup() {
   // Load the settings from flash/EEPROM
   loadSettings(false);
 
+#ifdef DISABLE_DITHERING
+  // Fast LED uses dithering to help with low brightness.
+  // This is resulting in flickering in the Animations, so we turn it off.
+  // Makes things much smoother!
+  FastLED.setDither(0);
+#endif
+
   // Setup Status LED
-  statusLED[0] = CHSV(240,100,STATUS_BRIGHTNESS);
+  statusLED[0] = CHSV(240,255,statusBrightness);
   
   updateDisplays();
 }
@@ -400,12 +415,15 @@ void setStatusLED(uint8_t mode, unsigned long delay, uint8_t loops) {
     switch(mode) {
       case 0:
         if (statusFlipFlop == 0) {
-          statusLED[0] = CHSV(96,255,STATUS_BRIGHTNESS);
+          //DEBUG_PRINT_LN(statusFade);
+          statusLED[0] = CRGB(0,255,0);
+          statusLED[0] %= statusFade*256;
           setStatusDelay(statusFlipFlopTime);
           statusFlipFlop = statusFlipFlop ^ 1;
         }
         else {
-          statusLED[0] = CHSV(0,255,STATUS_BRIGHTNESS);
+          statusLED[0] = CRGB(255,0,0);
+          statusLED[0] %= statusFade*256;
           setStatusDelay(statusFlipFlopTime);
           statusFlipFlop = statusFlipFlop ^ 1;
         }
@@ -417,12 +435,12 @@ void setStatusLED(uint8_t mode, unsigned long delay, uint8_t loops) {
           switch (state) {
             case 0:
                 // Purple
-                statusLED[0] = CHSV(200,255,STATUS_BRIGHTNESS);
+                statusLED[0] = CHSV(200,255,statusBrightness);
                 setStatusDelay(delay);
                 break;
             case 1:
                 // Off
-                statusLED[0] = CHSV(200,0,STATUS_BRIGHTNESS);
+                statusLED[0] = CHSV(200,0,statusBrightness);
                 setStatusDelay(delay);
                 break;
             default:
@@ -487,6 +505,10 @@ void allOFF(int logicDisplay, bool showLED, CRGB color=0x000000, unsigned long r
 void allON(int logicDisplay, bool showLED, CRGB color, unsigned long runtime=0)
 {
   allOFF(logicDisplay, showLED, color, runtime);
+}
+
+void setPixelBrightness(CRGB pixel, uint8_t logicDisplay) {
+  pixel = (activeSettings.frontTopBri/100);
 }
 
 
@@ -1058,6 +1080,24 @@ void FillLEDsFromPaletteColors(int logicDisplay)
           if (ledIndex != -1) {
             if (logicDisplay == FLD_TOP) {
               front_leds[ledIndex] = ColorFromPalette( frontTopTargetPalette, frontColorIndex[ledIndex]/* + sin8(count*32)*/, brightness, LINEARBLEND);
+              // To set per panel brightness, we need to use the HUE.
+              // Do a conversion from the color that was set to HSV, then set the V to brightness, then write it back.
+              // This is only a test.
+              // It does allow per panel brightness, but there is a color shift!
+              //CHSV tempHSV;
+              //tempHSV = rgb2hsv_approximate(front_leds[ledIndex]);
+              //tempHSV.value = 30;
+              //front_leds[ledIndex] = tempHSV;
+
+              // Here's how we set brightness on a per pixel setting
+              // We use the brightness value that's set as a percentage of max 
+              // So we take the Brightness value between 0 and 100 (0 is off)
+              // And use that to set the brightness levels.  
+              // Create a helper function is used to do that!
+             
+              //front_leds[ledIndex] %= (0.255 * 256);
+              setPixelBrightness(front_leds[ledIndex], 0);
+              
             }
             else if (logicDisplay == FLD_BOTTOM) {
               front_leds[ledIndex] = ColorFromPalette( frontBotTargetPalette, frontColorIndex[ledIndex]/* + sin8(count*32)*/, brightness, LINEARBLEND);
@@ -1066,7 +1106,6 @@ void FillLEDsFromPaletteColors(int logicDisplay)
             // We pick a random step size up to the MAX Step we allow.
             // All in the name of removing visible repeated patterning.
             tempStep = frontColorIndex[ledIndex] + random(FRONT_COLOR_STEP);
-            tempStep %= 255;
             //colorIndex += FRONT_COLOR_STEP; //colorIndex %= 255;  // Update the index in the color palette
             frontColorIndex[ledIndex] = tempStep;
             count++;
@@ -1084,8 +1123,6 @@ void FillLEDsFromPaletteColors(int logicDisplay)
           if (ledIndex != -1) {
             rear_leds[ledIndex] = ColorFromPalette( rearTargetPalette, rearColorIndex[ledIndex]/* + sin8(count*32)*/, brightness, LINEARBLEND);
             tempStep = rearColorIndex[ledIndex] + REAR_COLOR_STEP;
-            //tempStep %= 255;
-            //colorIndex += FRONT_COLOR_STEP; //colorIndex %= 255;  // Update the index in the color palette
             rearColorIndex[ledIndex] = tempStep;
             count++;
           }
@@ -2057,12 +2094,6 @@ void loop() {
 #endif
 
   }  
-
-  // Status LED Stuff.
-  //if (currentMillis - prevFlipFlopMillis >= statusFlipFlopTime) {
-  //  statusFlipFlop = statusFlipFlop ^ 1;
-  //  prevFlipFlopMillis=currentMillis;
-  //}
   
   setStatusLED();
 
@@ -2115,6 +2146,7 @@ void runPattern(int logicDisplay, int pattern) {
       break;
     case 40:
       // Random blinkies with colorshifts
+      // This is WIP
       randomBlinkies(logicDisplay, 2);
       break;
     case 5:             //  5 = Scream - Note this is the same as Alarm currently! (4s)
@@ -2687,12 +2719,16 @@ void doPcommand(int address, char* argument)
       if (value == 0) 
       {
         DEBUG_PRINT_LN("Turning off Status LED ");
-        activeSettings.statusLEDBrightness = STATUS_BRIGHTNESS = 0;
+        activeSettings.statusLEDBrightness = statusBrightness = 0;
+        statusFade = map(statusBrightness, 0,MAX_BRI,0,100);
+        statusFade /= 100;
         break;
       }
       if (value > 200) value = 200;
       if (value < MIN_STATUS_BRIGHTNESS) value = MIN_STATUS_BRIGHTNESS;
-      activeSettings.statusLEDBrightness = STATUS_BRIGHTNESS = value;
+      activeSettings.statusLEDBrightness = statusBrightness = value;
+      statusFade = map(statusBrightness, 0,MAX_BRI,0,100);
+      statusFade /= 100;
       DEBUG_PRINT("Setting brightness for Status LED to: "); DEBUG_PRINT_LN(value);
       break;
     case 5:

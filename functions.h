@@ -47,6 +47,7 @@ Settings tempSettings; //create a temporary variable structure in SRAM
 ///
 bool statusFlipFlop=0;
 bool prevStatusFlipFlop=1;
+float statusFade;
 #define slowBlink 2000 //number of millis between Status LED changes in normal mode
 #define fastBlink 100  //number of millis between Status LED changes in Adjust mode
 unsigned long prevFlipFlopMillis = 0;
@@ -391,7 +392,9 @@ void loadSettings(bool resetSettings=false) {
     activeSettings.rearScrollSlant = 1; // Right Lean
     
     activeSettings.internalBrightness = internalBrightness[0] = internalBrightness[1] = internalBrightness[2] = false;
-    activeSettings.statusLEDBrightness = STATUS_BRIGHTNESS = 25;  // If zero the LED is off.
+    activeSettings.statusLEDBrightness = statusBrightness = 25;  // If zero the LED is off.
+    statusFade = map(statusBrightness, 0,MAX_BRI,0,100);
+    statusFade /= 100;
 
     // Set the Palettes
     frontTopTargetPalette = paletteArray[currentPalette[0]][0];
@@ -446,7 +449,9 @@ void loadSettings(bool resetSettings=false) {
     activeSettings.rearScrollSlant = tempSettings.rearScrollSlant;
     
     internalBrightness[0] = internalBrightness[1] = internalBrightness[2] = activeSettings.internalBrightness = tempSettings.internalBrightness;
-    STATUS_BRIGHTNESS = activeSettings.statusLEDBrightness = tempSettings.statusLEDBrightness;
+    statusBrightness = activeSettings.statusLEDBrightness = tempSettings.statusLEDBrightness;
+    statusFade = map(statusBrightness, 0,MAX_BRI,0,100);
+    statusFade /= 100;
 
     // Set the Palettes
     frontTopTargetPalette = paletteArray[currentPalette[0]][0];

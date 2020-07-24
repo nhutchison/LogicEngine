@@ -12,6 +12,11 @@
 // NOTE THAT NO USB COMMANDS WILL BE PROCESSED IF THIS IS COMMENTED OUT
 #define DEBUG  // uncomment this line to output debug messages on Debug serial
 
+// If you see the Logics "flickering" then uncomment this define.
+// Your Status LED may turn off, but the Logics should look much smoother, and flickering should go away
+// This is likely only an issue of the LED's are set to a low brightness.
+//#define DISABLE_DITHERING
+
 // TEECES STUFF ....
 // TODO :  TEST THIS!!!!!!!
 // It compiles if set to 1, the rest is just a cut/paste from Pauls Sketch ... Zero testing!
@@ -543,8 +548,8 @@ bool startup = true;
 ////////////////////////////
 
 //NOTE: Anything less than 25 and this LEF will flicker like crazy!
-uint8_t STATUS_BRIGHTNESS=25; // set as uint8_t so it can be changed in code realtime
-#define MIN_STATUS_BRIGHTNESS 25
+uint8_t statusBrightness=25; // set as uint8_t so it can be changed in code realtime
+#define MIN_STATUS_BRIGHTNESS 8
 
 #define MAX_FADE 15
 #define MAX_DELAY 500
