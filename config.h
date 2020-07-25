@@ -222,6 +222,8 @@ uint8_t blinky_updates_per_sec[3] = {50,50,50}; // The bigger this number the fa
 uint8_t frontColorIndex[NUM_FRONT_LEDS];
 uint8_t rearColorIndex[NUM_REAR_LEDS];
 
+float brightness_pct[3];
+
 // Addressible LED Array
 // -1 = no LED in that grid space
 

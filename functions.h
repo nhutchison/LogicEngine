@@ -28,7 +28,8 @@ typedef struct {
 
 // We can use this to change where in EEPROM we write for the TEENSY.
 #if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MK64FX512__) || defined(__MK66FX1M0__)
-  #define EEPROM_base_addr = 0;
+  #include <avr/eeprom.h>
+  uint8_t EEPROM_base_addr = 0;
 #endif
 
 #if defined(__SAMD21G18A__)
@@ -160,7 +161,7 @@ void compareTrimpots(byte adjMode = 0) {
             }
             else if (x == 2) {
               DEBUG_PRINT_LN("Front Brightness Changed");
-              activeSettings.frontTopBri = activeSettings.frontBotBri = map(loopTrimpots[x], 0, 1023, 0, MAX_BRI); //if loopTrimpots were int's
+              //activeSettings.frontTopBri = activeSettings.frontBotBri = map(loopTrimpots[x], 0, 1023, 0, MAX_BRI); //if loopTrimpots were int's
             }
             else if (x == 3) {
               DEBUG_PRINT_LN("Front Palette Changed");
@@ -180,7 +181,7 @@ void compareTrimpots(byte adjMode = 0) {
             }
             else if (x == 2) {
               DEBUG_PRINT_LN("Rear Brightness Changed");
-              activeSettings.rearBri = map(loopTrimpots[x], 0, 1023, 0, MAX_BRI); //if loopTrimpots were int's
+              //activeSettings.rearBri = map(loopTrimpots[x], 0, 1023, 0, MAX_BRI); //if loopTrimpots were int's
             }
             else if (x == 3) {
               DEBUG_PRINT_LN("Rear Palette Changed");
@@ -331,7 +332,8 @@ void saveSettings() {
       #if defined(__SAMD21G18A__)
         my_flash_store.write(activeSettings);
       #elif defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MK64FX512__) || defined(__MK66FX1M0__)
-        EEPROM.put(EEPROM_base_addr, activeSettings);
+        //EEPROM.put(EEPROM_base_addr, activeSettings);
+        eeprom_write_block((const void*)&activeSettings, (void*)0, sizeof(activeSettings));
       #endif
     }
     else {
@@ -346,7 +348,8 @@ void loadSettings(bool resetSettings=false) {
   tempSettings = my_flash_store.read();
 #elif defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MK64FX512__) || defined(__MK66FX1M0__)
   // Read the EEPROM into a temp storage so we can parse it ...
-  tempSettings = EEPROM.read(EEPROM_base_addr);
+  //tempSettings = EEPROM.read(EEPROM_base_addr);
+  eeprom_read_block((void*)&tempSettings, (void*)0, sizeof(tempSettings));
 #endif
 
   DEBUG_PRINT_LN("****************************************");
@@ -372,21 +375,25 @@ void loadSettings(bool resetSettings=false) {
     activeSettings.frontTopFade = 60;
     // Here we load the internal brightness value, but will only use that if the internal brightness
     // control is set.  Otherwise, the POT will be used.
-    activeSettings.frontTopBri = internalBrightness[0] = 10; // Initially set pretty low.  // Only this one is used!
+    activeSettings.frontTopBri = globalBrightnessValue[0] = 80; // Initially set pretty low.  // Only this one is used!
+    brightness_pct[0] = float(activeSettings.frontTopBri) / 100;
+    
     activeSettings.frontTopHue = 0; // Not Used.
     activeSettings.frontTopPalNum = currentPalette[0] = 0;
     activeSettings.frontTopDesat = 0; // Not used.
     
     activeSettings.frontBotDelay = blinky_updates_per_sec[1] = 50;
     activeSettings.frontBotFade = 60;
-    activeSettings.frontBotBri = internalBrightness[1] = 10; // Initially set pretty low.
+    activeSettings.frontBotBri = globalBrightnessValue[1] = 80; // Initially set pretty low.
+    brightness_pct[1] = float(activeSettings.frontBotBri) / 100;
     activeSettings.frontBotHue = 0; // Not Used.
     activeSettings.frontBotPalNum = currentPalette[1] = 0;
     activeSettings.frontBotDesat = 0; // Not used.
     
     activeSettings.rearDelay = blinky_updates_per_sec[2] = 50;
     activeSettings.rearFade = 60;
-    activeSettings.rearBri = internalBrightness[2] = 10; // Initially set pretty low.
+    activeSettings.rearBri = globalBrightnessValue[2] = 80; // Initially set pretty low.
+    brightness_pct[2] = float(activeSettings.rearBri) / 100;
     activeSettings.rearHue = 0; // Not Used.
     activeSettings.rearPalNum = currentPalette[2] = 0;
     activeSettings.rearDesat = 0; // Not used.

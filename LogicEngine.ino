@@ -258,11 +258,6 @@ void fill_column(int logicDisplay, uint8_t column, CRGB color, uint8_t scale_bri
   RTCZero rtc;
 #endif
 
-#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MK64FX512__) || defined(__MK66FX1M0__)
-// The Teensy does have an EEPROM, so store the structure in EEPROM.
-  #include "EEPROM.h"
-#endif
-
 // Function Prototypes
 /*
 // function prototype for the Matrix Display.  This is doing cleverness.  Don't change it!
@@ -384,8 +379,35 @@ void setup() {
 // This updates the FastLED's only if we're not receiving a command
 // When updating the LED's, the interrupts are disabled which can
 // cause issues with Serial / i2c command handling
+// This is also the only function that should be called to update
+// the LED's so it's ideal to do the per panel brightness stuff!
 void updateDisplays(){
-  if (!dataRcvInProgress) FastLED.show(brightness());
+  if (!dataRcvInProgress) {
+
+/*
+    // Go through each of the Displays, and set the brightness values...
+    // Top Front Logic
+    for (int i=0; i<NUM_FRONT_LEDS/2; i++)
+    {
+      //setPixelBrightness(front_leds[ledIndex], 0); 
+      //front_leds[i] %= (brightness_pct[0] * 256);
+      //front_leds[i] %= (0.255 * 256);
+    }
+    //Bottom Front Logic
+    for (int i=NUM_FRONT_LEDS/2; i<NUM_FRONT_LEDS; i++)
+    {
+      //setPixelBrightness(front_leds[ledIndex], 0); 
+      //front_leds[i] %= ((activeSettings.frontBotBri / 100) * 256);
+    }
+    //Read Logic
+    for (int i=0; i<NUM_REAR_LEDS; i++)
+    {
+      //setPixelBrightness(front_leds[ledIndex], 0); 
+      //rear_leds[i] %= 0.25 * 256; //((activeSettings.rearBri / 100) * 256);
+    }    
+*/
+    FastLED.show(brightness());
+  }
 }
 
 // This will toggle the Status LED colors on the control board.
@@ -509,10 +531,6 @@ void allOFF(int logicDisplay, bool showLED, CRGB color=0x000000, unsigned long r
 void allON(int logicDisplay, bool showLED, CRGB color, unsigned long runtime=0)
 {
   allOFF(logicDisplay, showLED, color, runtime);
-}
-
-void setPixelBrightness(CRGB pixel, uint8_t logicDisplay) {
-  pixel = (activeSettings.frontTopBri/100);
 }
 
 
@@ -1100,7 +1118,7 @@ void FillLEDsFromPaletteColors(int logicDisplay)
               // Create a helper function is used to do that!
              
               //front_leds[ledIndex] %= (0.255 * 256);
-              setPixelBrightness(front_leds[ledIndex], 0);
+              //setPixelBrightness(front_leds[ledIndex], 0);
               
             }
             else if (logicDisplay == FLD_BOTTOM) {
@@ -2945,6 +2963,7 @@ void printSettings()
     DEBUG_PRINT("FTL Delay: "); DEBUG_PRINT_LN(activeSettings.frontTopDelay);
     DEBUG_PRINT("FTL Fade: "); DEBUG_PRINT_LN(activeSettings.frontTopFade);
     DEBUG_PRINT("FTL Brightness: "); DEBUG_PRINT_LN(activeSettings.frontTopBri);
+    DEBUG_PRINT("FTL Bri Pct: "); DEBUG_PRINT_LN(brightness_pct[0]);
     DEBUG_PRINT("FTL Hue: "); DEBUG_PRINT_LN(activeSettings.frontTopHue);
     DEBUG_PRINT("FTL Pal Num: "); DEBUG_PRINT_LN(activeSettings.frontTopPalNum);
     DEBUG_PRINT("FTL Saturation: "); DEBUG_PRINT_LN(activeSettings.frontTopDesat);
@@ -2952,6 +2971,7 @@ void printSettings()
     DEBUG_PRINT("FBL Delay: "); DEBUG_PRINT_LN(activeSettings.frontBotDelay);
     DEBUG_PRINT("FBL Fade: "); DEBUG_PRINT_LN(activeSettings.frontBotFade);
     DEBUG_PRINT("FBL Brightness: "); DEBUG_PRINT_LN(activeSettings.frontBotBri);
+    DEBUG_PRINT("FBL Bri Pct: "); DEBUG_PRINT_LN(brightness_pct[1]);
     DEBUG_PRINT("FBL Hue: "); DEBUG_PRINT_LN(activeSettings.frontBotHue);
     DEBUG_PRINT("FBL Pal Num: "); DEBUG_PRINT_LN(activeSettings.frontBotPalNum);
     DEBUG_PRINT("FBL Saturation: "); DEBUG_PRINT_LN(activeSettings.frontBotDesat);
@@ -2959,6 +2979,7 @@ void printSettings()
     DEBUG_PRINT("RLD Delay: "); DEBUG_PRINT_LN(activeSettings.rearDelay);
     DEBUG_PRINT("RLD Fade: "); DEBUG_PRINT_LN(activeSettings.rearFade);
     DEBUG_PRINT("RLD Brightness: "); DEBUG_PRINT_LN(activeSettings.rearBri);
+    DEBUG_PRINT("RLD Bri Pct: "); DEBUG_PRINT_LN(brightness_pct[2]);
     DEBUG_PRINT("RLD Hue: "); DEBUG_PRINT_LN(activeSettings.rearHue);
     DEBUG_PRINT("RLD Pal Num: "); DEBUG_PRINT_LN(activeSettings.rearPalNum);
     DEBUG_PRINT("RLD Saturation: "); DEBUG_PRINT_LN(activeSettings.rearDesat);
