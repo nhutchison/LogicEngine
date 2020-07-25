@@ -491,7 +491,8 @@ bool settingsChanged() {
   // Grab a copy of what is currently in Flash.
   tempSettings = my_flash_store.read();
 #elif defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MK64FX512__) || defined(__MK66FX1M0__)
-  tempSettings = EEPROM.read(EEPROM_base_addr);
+  //tempSettings = EEPROM.read(EEPROM_base_addr);
+  eeprom_read_block((void*)&tempSettings, (void*)0, sizeof(tempSettings));
 #endif
 
   // We don't compare the number of writes, since it's changed when we write and isn't a setting ;)
