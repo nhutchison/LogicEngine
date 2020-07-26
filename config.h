@@ -12,6 +12,10 @@
 // NOTE THAT NO USB COMMANDS WILL BE PROCESSED IF THIS IS COMMENTED OUT
 #define DEBUG  // uncomment this line to output debug messages on Debug serial
 
+// To send data to the PSI PRO, we override the Adjustment jumper SW2 which is actually 
+// Serial1.  We reclaim Serial1, and remove the Switch!
+#define USE_PSI_PRO
+
 // If you see the Logics "flickering" then uncomment this define.
 // Your Status LED may turn off, but the Logics should look much smoother, and flickering should go away
 // This is likely only an issue of the LED's are set to a low brightness.
@@ -33,6 +37,7 @@
 // handle to the Serial object
 Stream* serialPort;
 Stream* debugSerialPort;
+Stream* PSIserialPort;
 
 
 ///////////////////////////////////////////////////
@@ -94,8 +99,13 @@ uint8_t defaultPattern = 1; //Mode 1 is Random Blinkies
   #define fadePin A2 //16analog pin to read tweenPause value
   #define briPin A3 //17analog pin to read Brightness value
   #define huePin A6 //20analog pin to read Color/Hue shift value
+#ifndef USE_PSI_PRO
   #define FADJ_PIN 0  //front adjust jumper
   #define RADJ_PIN 1  //rear adjust jumper
+#else
+ // redefine them to nonsense.
+ 
+#endif
   #define PAL_PIN 2  //pin used to switch palettes in ADJ mode
 #elif defined(__SAMD21G18A__)
   #define FRONT_PIN 5
@@ -115,6 +125,14 @@ uint8_t defaultPattern = 1; //Mode 1 is Random Blinkies
   #define FADJ_PIN 2
   #define RADJ_PIN 4
   #define PAL_PIN 9  
+
+  #ifdef USE_PSI_PRO
+    // We're going to create a new HW Serial!
+    //Use Pins D11 for Tx and D13 for Rx as these are next to each other! - I know I didn't use these!
+    #define PSI_SERIAL_TX_PIN 10 // D10
+    #define PSI_SERIAL_RX_PIN 11 // D11
+  #endif
+  
 #else
   // No Board settings known for LED pins ... I'm going to barf this!
   #error UNRECOGNIZED PINOUT.  Sorry.
@@ -534,6 +552,7 @@ char logicText[3][MAXSTRINGSIZE+1] = {"R2-D2", "  ASTROMECH", "Star Wars"};
 
 // memory for command string processing
 char cmdString[CMD_MAX_LENGTH];
+char PSIcmdString[CMD_MAX_LENGTH];
 
 ////////////////////////////////
 ///////////////////////////////

@@ -200,6 +200,7 @@ void compareTrimpots(byte adjMode = 0) {
 //TODO - This code from Paul seems unreliable.
 // The state stracking isn't right such that if you set the switch to "front" then center, then front, 
 // it doesn't go back into fast blinky mode.  Need to look at this more closely.
+/*
 void checkAdjSwitch() {
   
   if (digitalRead(FADJ_PIN) == 0 && prevAdjMode != 1 && startAdjMode == 0) {
@@ -228,24 +229,11 @@ void checkAdjSwitch() {
       statusFlipFlopTime = slowBlink; 
 
       //if we were in previous adjMode for way too long, save settings here  SAVE STUFF HERE and go back to regular mode!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-      if (adjLoops > adjLoopMin)  {
+      if (adjLoops > adjLoopMin)  {      
 
-        /*
-        DEBUG_PRINT_LN("save");
-        DEBUG_PRINT_LN("FDelay ");
-        DEBUG_PRINT_LN(mySettings.frontDelay);
-        DEBUG_PRINT_LN("FFade ");
-        DEBUG_PRINT_LN(mySettings.frontFade);
-        DEBUG_PRINT_LN("FHue ");
-        DEBUG_PRINT_LN(mySettings.frontHue);
-        DEBUG_PRINT_LN("FBri ");
-        DEBUG_PRINT_LN(mySettings.frontBri);
-        DEBUG_PRINT_LN("FPal ");
-        DEBUG_PRINT_LN(mySettings.frontPalNum);        
-
-        mySettings.writes++;
-        saveSettings();
-        */
+        //mySettings.writes++;
+        //saveSettings();
+        
         if (adjLoops>adjLoopMax) {
           startAdjMode=adjMode;
           adjLoops=0;
@@ -267,7 +255,9 @@ void checkAdjSwitch() {
   prevAdjMode = adjMode;
   
 }
+*/
 
+/*
 int checkPalButton() {
   
   if (digitalRead(PAL_PIN) == 0) {
@@ -320,7 +310,7 @@ int checkPalButton() {
   }
   prevPalPinStatus = palPinStatus;
 }
-
+*/
 
 void saveSettings() {
     // We check to see if things have changed and only write if they have.

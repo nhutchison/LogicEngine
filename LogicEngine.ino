@@ -256,6 +256,19 @@ void fill_column(int logicDisplay, uint8_t column, CRGB color, uint8_t scale_bri
 #if defined(__SAMD21G18A__)
   #include <RTCZero.h>
   RTCZero rtc;
+
+#ifdef USE_PSI_PRO 
+  #include "wiring_private.h"  // needed for pinPeripheral() 
+  // Create a new HW Serial!
+  Uart Serial2 (&sercom1, PSI_SERIAL_RX_PIN, PSI_SERIAL_TX_PIN, SERCOM_RX_PAD_0, UART_TX_PAD_2);
+
+// We add this, although we only really even need to send on the new Serial Port.
+void SERCOM1_Handler()
+{
+  Serial2.IrqHandler();
+}
+#endif //USE_PSI_PRO 
+  
 #endif
 
 // Function Prototypes
@@ -305,9 +318,28 @@ void setup() {
   // Teensy uses Serial 3 for UART.  No idea why Serial 3, but apparently it does!
   Serial3.begin(BAUDRATE);
   serialPort = &Serial3;
+
+  #ifdef USE_PSI_PRO  
+    // Since the Serial 1 was used for hte Adjustment jumper, we need to override that and restore the Serial!
+    // Used Pins 0 and 1
+    Serial1.begin(BAUDRATE);
+    PSIserialPort = &Serial1;
+  #endif
+  
 #elif defined(__SAMD21G18A__)
   Serial1.begin(BAUDRATE);
   serialPort = &Serial1;
+
+  // Assign pins 10 & 11 SERCOM functionality
+  // This overrides the default so that we can create the new Serial
+  pinPeripheral(PSI_SERIAL_TX_PIN, PIO_SERCOM);
+  pinPeripheral(PSI_SERIAL_RX_PIN, PIO_SERCOM);
+
+  #ifdef USE_PSI_PRO  
+  Serial2.begin(BAUDRATE);
+  PSIserialPort = &Serial2;
+    
+  #endif
 #else 
   #error UNRECOGNISED SERIAL PORT.  I give up!  
 #endif
@@ -351,10 +383,14 @@ void setup() {
   }
 
   // Set the various PIN modes for the POT's and switch control
+#ifndef USE_PSI_PRO  
   pinMode(FADJ_PIN, INPUT_PULLUP); //use internal pullup resistors of Teensy
   pinMode(RADJ_PIN, INPUT_PULLUP);
+
   if (digitalRead(RADJ_PIN) == 0 or digitalRead(FADJ_PIN) == 0) startAdjMode = 1; //adj switch isn't centered!
+#endif
   pinMode(PAL_PIN, INPUT_PULLUP);  
+
 
   // Load the settings from flash/EEPROM
   loadSettings(false);
@@ -2097,8 +2133,8 @@ void loop() {
     calcAveragePOT();
 
   // Check the POT's and Switch setup ...
-  checkAdjSwitch();
-  checkPalButton();
+  //checkAdjSwitch();
+  //checkPalButton();
 
   compareTrimpots();
   
@@ -2349,10 +2385,26 @@ void parseCommand(char* inputStr)
   byte pos=0;
   byte endArg=0;
   byte length=strlen(inputStr);
+  byte PSIPos = length;
   if(length<2) goto beep;   // not enough characters
 
   DEBUG_PRINT(" Here's the input string: ");
   DEBUG_PRINT_LN(inputStr);
+
+  #ifdef USE_PSI_PRO
+    // We forward the same command to the PSI_PRO so it can do something too ...
+    // Note that this is a blind forward of the command!
+    strcpy(PSIcmdString, inputStr);
+    PSIcmdString[PSIPos] = '\r'; // Re-add the \r as the PSI needs it
+    PSIPos++;
+    PSIcmdString[PSIPos] = '\0'; // Add the numm terminator
+    // send the command to the PSI serial
+    // NOTE:  If the print doesn't work I may need to loop and send each
+    // character until we hit the null terminator...  Just FYI.
+    //PSIserialPort->write(PSIcmdString, strlen(PSIcmdString));
+    // Print should send the character
+    PSIserialPort->print(PSIcmdString);
+  #endif // USE PSI Pro.
   
   // get the adress, one or two digits
   char addrStr[3];
