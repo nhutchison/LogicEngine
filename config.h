@@ -100,8 +100,8 @@ uint8_t defaultPattern = 1; //Mode 1 is Random Blinkies
   #define briPin A3 //17analog pin to read Brightness value
   #define huePin A6 //20analog pin to read Color/Hue shift value
 #ifndef USE_PSI_PRO
-  #define FADJ_PIN 0  //front adjust jumper
-  #define RADJ_PIN 1  //rear adjust jumper
+  #define FADJ_PIN 0  //front adjust jumper  // Doubles as Rx for Serial1 to send data to the PSIPro (or any serial connected device)
+  #define RADJ_PIN 1  //rear adjust jumper   // Doubles as Tx for Serial1 to send data to the PSIPro (or any serial connected device)
 #else
  // redefine them to nonsense.
  
@@ -128,9 +128,9 @@ uint8_t defaultPattern = 1; //Mode 1 is Random Blinkies
 
   #ifdef USE_PSI_PRO
     // We're going to create a new HW Serial!
-    //Use Pins D11 for Tx and D13 for Rx as these are next to each other! - I know I didn't use these!
+    //Use Pins D11 for Tx and D12 for Rx as these are next to each other on the Zero
     #define PSI_SERIAL_TX_PIN 10 // D10
-    #define PSI_SERIAL_RX_PIN 11 // D11
+    #define PSI_SERIAL_RX_PIN 12 // D12
   #endif
   
 #else
