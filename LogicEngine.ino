@@ -320,7 +320,7 @@ void setup() {
   serialPort = &Serial3;
 
   #ifdef USE_PSI_PRO  
-    // Since the Serial 1 was used for hte Adjustment jumper, we need to override that and restore the Serial!
+    // Since the Serial 1 was used for the Adjustment jumper, we need to override that and restore the Serial!
     // Used Pins 0 and 1
     Serial1.begin(BAUDRATE);
     PSIserialPort = &Serial1;
@@ -330,12 +330,14 @@ void setup() {
   Serial1.begin(BAUDRATE);
   serialPort = &Serial1;
 
+  
+  #ifdef USE_PSI_PRO  
   // Assign pins 10 & 11 SERCOM functionality
   // This overrides the default so that we can create the new Serial
   pinPeripheral(PSI_SERIAL_TX_PIN, PIO_SERCOM);
   pinPeripheral(PSI_SERIAL_RX_PIN, PIO_SERCOM);
 
-  #ifdef USE_PSI_PRO  
+  // Start the second serial for Serial TX to the PSI Pro
   Serial2.begin(BAUDRATE);
   PSIserialPort = &Serial2;
     

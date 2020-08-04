@@ -27,8 +27,8 @@
 #define TEECESPSI 0
 
 //Teeces PSI related settings...
-#define TEECES_D_PIN 12
-#define TEECES_C_PIN 10
+#define TEECES_D_PIN 12  // Note these are the same pins as the PSIPro, so it's one or the other!
+#define TEECES_C_PIN 10  // Note these are the same pins as the PSIPro, so it's one or the other!
 #define TEECES_L_PIN 6
 #define RPSIbright 15 //rear PSI
 #define FPSIbright 15 //front PSI
@@ -38,6 +38,10 @@
 Stream* serialPort;
 Stream* debugSerialPort;
 Stream* PSIserialPort;
+
+#if defined(USE_PSI_PRO) && (TEECESPSI>0)
+  #error CANNOT USE BOTH TEECES AND PSI PRO
+#endif
 
 
 ///////////////////////////////////////////////////
@@ -533,8 +537,18 @@ char logicText[3][MAXSTRINGSIZE+1] = {"R2-D2", "  ASTROMECH", "Star Wars"};
 
 
 #ifdef DEBUG
+// If you need to see debug output on the UART, you CAN change the two lines below
+// and comment out the first two, uncomment the second two.  Note that due to the 
+// SERIAL UART running at 2400, you will see a slowdown on the pattern updates, scrolling
+// text etc when you do this ... it's normal, and NEEDED for the Serial to not lose data.
+// I will not that this is not recommended, but here in case you need to do debug.
+//  BE WARNED, if you enable this, I assume you understand the info above, and accept
+//  the delays in update/refresh you will see!
+    
     #define DEBUG_PRINT_LN(msg)  debugSerialPort->println(msg)
     #define DEBUG_PRINT(msg)  debugSerialPort->print(msg)
+    //#define DEBUG_PRINT_LN(msg)  serialPort->println(msg)
+    //#define DEBUG_PRINT(msg)  serialPort->print(msg)
 #else
   #define DEBUG_PRINT_LN(msg)
   #define DEBUG_PRINT(msg)
