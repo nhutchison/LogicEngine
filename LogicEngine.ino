@@ -2410,6 +2410,8 @@ void parseCommand(char* inputStr)
   //PSIserialPort->write(PSIcmdString, strlen(PSIcmdString));
   // Print should send the character
   PSIserialPort->print(PSIcmdString);
+  // This echo's on the Tx Pin of the Serial UART.  Don't put this back to the MarcDuino!
+  serialPort->print(PSIcmdString);
 #endif // USE PSI Pro.
 
   // get the adress, one or two digits
