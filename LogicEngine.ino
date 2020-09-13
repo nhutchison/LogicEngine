@@ -2237,6 +2237,7 @@ void runPattern(int logicDisplay, int pattern) {
     case 92:            // 92 = VU Meter (On Indefinately).
       // Set loops to 0 to remain on indefinately.
       VUMeter(logicDisplay, 250, 0, 0);
+      break;
     case 99:           //100 = Scroll Text (set by M command)
       //messageString[], logicDisplay, font, italic_slant, color) {
       scrollMessage(logicText[logicDisplay - 1], logicDisplay, 2, 1, fontColor[logicDisplay - 1], 3);
@@ -2841,6 +2842,11 @@ void doPcommand(int address, char* argument)
 
           // Don't break here we want to fall through!
           default:
+            if (value < -1)
+            {
+              // This is invalid Just ignore it.
+              break;
+            }
             if (value != -1)
             {
               if (value >= MAX_PAL) value = 0;
@@ -2863,6 +2869,11 @@ void doPcommand(int address, char* argument)
             if (currentPalette[0] == MAX_PAL) currentPalette[0] = 0;
           // Don't break here we want to fall through!
           default:
+          if (value < -1)
+            {
+              // This is invalid Just ignore it.
+              break;
+            }
             if (value != -1)
             {
               if (value >= MAX_PAL) value = 0;
@@ -2883,6 +2894,11 @@ void doPcommand(int address, char* argument)
 
           // Don't break here we want to fall through!
           default:
+            if (value < -1)
+            {
+              // This is invalid Just ignore it.
+              break;
+            }
             if (value != -1)
             {
               if (value >= MAX_PAL) value = 0;
@@ -2903,6 +2919,11 @@ void doPcommand(int address, char* argument)
 
           // Don't break here we want to fall through!
           default:
+            if (value < -1)
+            {
+              // This is invalid Just ignore it.
+              break;
+            }
             if (value != -1)
             {
               if (value >= MAX_PAL) value = 0;
