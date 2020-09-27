@@ -34,6 +34,14 @@
 #define FPSIbright 15 //front PSI
 #define PSIstuck 5 //odds (in 100) that a PSI will get partially stuck between 2 colors
 
+// Power Measurement
+#if defined(__SAMD21G18A__)
+  #define POWER_MEASURE_PIN A5
+#else
+  // Hmm.  What should this be on the teensy?
+  #define POWER_MEASURE_PIN A5
+#endif
+
 // handle to the Serial object
 Stream* serialPort;
 Stream* debugSerialPort;
@@ -80,6 +88,13 @@ uint8_t defaultPattern = 1; //Mode 1 is Random Blinkies
 #define FLD_BOTTOM 2
 #define RLD 3
 
+///////
+//
+//////
+// To know the level of the battery, we need to know what the expected max power level is.  
+// Set that here ... note I'll add a way to set this without re-uploading later.
+// value is in volts (so 12V == 12, 24V = 24, 5V == 5) etc.
+float MAX_BATTERY_LEVEL = 5.0;
 
 
 ///

@@ -137,18 +137,22 @@
       e.g. Flash, Alarm, Scream
     You must be cautious.
 
-      Mode 0  - Turn Panel off (This will also turn stop the Teeces if they share the serial connection and the "0" address is used)
-      Mode 1  - Default (Random Blinkies) The default mode can be changed on the config.h tab
-      Mode 2  - Flash (fast flash) (4 seconds) Use caution around those sensitive to flashing lights.
-      Mode 3  - Alarm (slow flash) (4 seconds)
-      Mode 4  - Short Circuit (10 seconds)
-      Mode 5  - Scream (4 seconds)
-      Mode 6  - Leia Message (34 seconds)
-      Mode 11 - Imperial March (47 seconds)
-      Mode 12 - Disco Ball (4 seconds)
-      Mode 13 - Disco Ball - Runs Indefinitely
-      Mode 21 - VU Meter (4 seconds)
-      Mode 92 - VU Meter - Runs Indefinitely (Spectrum on Teeces)
+      Mode 0   - Turn Panel off (This will also turn stop the Teeces if they share the serial connection and the "0" address is used)
+      Mode 1   - Default (Random Blinkies) The default mode can be changed on the config.h tab
+      Mode 2   - Flash (fast flash) (4 seconds) Use caution around those sensitive to flashing lights.
+      Mode 3   - Alarm (slow flash) (4 seconds)
+      Mode 4   - Short Circuit (10 seconds)
+      Mode 5   - Scream (4 seconds)
+      Mode 6   - Leia Message (34 seconds)
+      Mode 11  - Imperial March (47 seconds)
+      Mode 12  - Disco Ball (4 seconds)
+      Mode 13  - Disco Ball - Runs Indefinitely
+      Mode 21  - VU Meter (4 seconds)
+      Mode 50  - Battery Voltage Output
+      Mode 92  - VU Meter - Runs Indefinitely (Spectrum on Teeces)
+      Mode 98  - Scroll Text (set by M command) - Scroll in English (Used by Display Voltage)
+      Mode 99  - Scroll Text (set by M command) - Scroll in Aurebesh (Front Logics only -  Rear only supports English)
+      Mode 100 - Scroll Text (set by M command).  Uses P command settings for language, and G command settings for color
 
    Most users shouldn't need to change anything below this line. Please see the config.h tab
    for user adjustable settings.
@@ -157,6 +161,11 @@
 // Arduino Libraries
 #include "FastLED.h"
 #include "Wire.h"
+
+// Needed for dtostrf for voltage functions
+#if defined(__SAMD21G18A__)
+#include <avr/dtostrf.h>
+#endif
 
 // Local .h files in the same directory as the main sketch
 #include "config.h"
@@ -241,6 +250,11 @@ uint8_t hue = 0;
 
 uint8_t front_cnt = 0;
 uint8_t rear_cnt = 0;
+
+// Store the current voltage reading
+float battery_voltage_reading;
+float battery_voltage, battery_percentage;
+char battery_text[25];
 
 // Function prototype for helper functions
 void fill_row(int logicDisplay, uint8_t row, CRGB color, uint8_t scale_brightness = 0);
@@ -1719,6 +1733,59 @@ void Cylon_Row(int logicDisplay, CRGB color, unsigned long time_delay, int type,
   }
 }
 
+// This function is sneaky.  It's only called once, and it kicks off various other patterns.
+// This doesn't do any end of pattern or first call checks.  That's intentional!
+void display_power(int logicDisplay)
+{
+  // Convert from 12 bit precision 0-4095)
+  // The Reactor Zero divides the voltage to 10% of it's actual value so it is safe to read.
+  // To get back to the actual Voltage, we need to multiply it back up.
+  battery_voltage = (battery_voltage_reading * (3.3 / 4095.0)) * 10;
+  battery_percentage = ((MAX_BATTERY_LEVEL - (battery_voltage)) / MAX_BATTERY_LEVEL) * 100;
+
+  // Generate the display message.
+  char* vlt = "V: ";
+  char* pct = " - Bat %: ";
+  char fvalue[8];
+
+  strcpy(battery_text, vlt);
+  dtostrf(battery_voltage, 4, 2, fvalue);
+  strcat(battery_text, fvalue);
+  //strcat(battery_text, pct);
+  //dtostrf(100 - battery_percentage, 5, 2, fvalue);
+  //strcat(battery_text, fvalue);
+
+  // We set the text to the Bottom Logic, just print that.
+  DEBUG_PRINT_LN(battery_text);
+
+  setText(FLD_BOTTOM, battery_text);
+  runPattern(FLD_BOTTOM, 98);
+
+}
+
+// Ok, so this is an approximation for % Battery Remaining
+// We use the Base Voltage, assuming a LIPO with X cells to
+// generate a set of percentages for the remaining battery life.
+// While this is based on going to 5% batter life, in reality you
+// should never go below about 20% or you risk damaging the cells
+
+// We will call the warning pattern as soon as the battery gets to 25%
+// It may be high, and hey, go adjust it if you want.
+// For waht it's worth, this results in something that I think is too high,
+// but it is a start point.  I'll refine it!
+void calc_battery_remaining()
+{
+
+  #define MAX_CELL 4.2  // 100%
+  #define MIN_CELL 3.7 //   5%
+
+  float cell_range = MAX_CELL - MIN_CELL;
+
+  // Take the measured value, and calculate the percentage
+  // Formula is ((measured - min) * 100) / range
+  
+}
+
 ///
 // Scrolling text stuff
 //
@@ -2157,6 +2224,37 @@ void loop() {
     serialEvent();
 #endif
 
+    // Once per main loop tick we read the voltage from the Voltage Pin, and calculate the battery levels.
+    // This way we just use it when it's needed.
+    // Note:  We don't do the calculation to convert the read voltage @10% of the real battery here.  That just
+    // takes CPU time that we don't need to spend unless we're actually displaying the voltage!
+
+#if defined(__SAMD21G18A__)
+    // Note: we use the 12 bit precision version here since the SAMD can manage it.
+    // Also if your input voltage is over 33V, there will be a deadspot in readings between 33V and 36V
+    // 36V is the highest input that the Reactor can take.  Don't try to supply it more!
+
+    analogReadResolution(12); // 12 bit precision
+    battery_voltage_reading = analogRead(POWER_MEASURE_PIN);
+#else
+    /****************************************************************************************
+     * *************************************************************************************
+                                           HUGE WARNING !!!!!!
+
+       If you're not using the Reactor Zero, and instead the Teensy Version
+       You'll need to make sure that the input to the A5 pin is reduced to a safe level.
+       That means the voltage should the 10% of the real voltage.
+       This meansit needs to be divided to read between 0 and 3.3V.  If it is higer you will
+       fry the board.
+          The Reactor Zero has this built in.  The Teensy does not.  I have warned you.
+
+     * ************************************************************************************
+     ***************************************************************************************/
+    // Commented out for now until I figure ou thte right pin to use :D
+    //battery_voltage_reading = analogRead(POWER_MEASURE_PIN);
+    battery_voltage_reading = 0;
+#endif
+
   }
 
   setStatusLED();
@@ -2234,11 +2332,18 @@ void runPattern(int logicDisplay, int pattern) {
       // Set loops to 0 to remain on indefinately.
       VUMeter(logicDisplay, 250, 0, 4);
       break;
+    case 50:
+      display_power(logicDisplay);
+      break;
     case 92:            // 92 = VU Meter (On Indefinately).
       // Set loops to 0 to remain on indefinately.
       VUMeter(logicDisplay, 250, 0, 0);
       break;
-    case 99:           //100 = Scroll Text (set by M command)
+    case 98:           //98 = Scroll Text (set by M command) - Scroll in English (Used by Display Voltage)
+      //messageString[], logicDisplay, font, italic_slant, color) {
+      scrollMessage(logicText[logicDisplay - 1], logicDisplay, 1, 1, fontColor[logicDisplay - 1], 3);
+      break;
+    case 99:           //99 = Scroll Text (set by M command) - Scroll in Aurebesh
       //messageString[], logicDisplay, font, italic_slant, color) {
       scrollMessage(logicText[logicDisplay - 1], logicDisplay, 2, 1, fontColor[logicDisplay - 1], 3);
       break;
@@ -2842,12 +2947,7 @@ void doPcommand(int address, char* argument)
 
           // Don't break here we want to fall through!
           default:
-            if (value < -1)
-            {
-              // This is invalid Just ignore it.
-              break;
-            }
-            if (value != -1)
+            if (value > -1)
             {
               if (value >= MAX_PAL) value = 0;
               currentPalette[0] = currentPalette[1] = currentPalette[2] = value;
@@ -2869,12 +2969,7 @@ void doPcommand(int address, char* argument)
             if (currentPalette[0] == MAX_PAL) currentPalette[0] = 0;
           // Don't break here we want to fall through!
           default:
-          if (value < -1)
-            {
-              // This is invalid Just ignore it.
-              break;
-            }
-            if (value != -1)
+            if (value > -1)
             {
               if (value >= MAX_PAL) value = 0;
               activeSettings.frontTopPalNum = currentPalette[0] = value;
@@ -2894,12 +2989,7 @@ void doPcommand(int address, char* argument)
 
           // Don't break here we want to fall through!
           default:
-            if (value < -1)
-            {
-              // This is invalid Just ignore it.
-              break;
-            }
-            if (value != -1)
+            if (value > -1)
             {
               if (value >= MAX_PAL) value = 0;
               activeSettings.frontBotPalNum = currentPalette[1] = value;
@@ -2919,12 +3009,7 @@ void doPcommand(int address, char* argument)
 
           // Don't break here we want to fall through!
           default:
-            if (value < -1)
-            {
-              // This is invalid Just ignore it.
-              break;
-            }
-            if (value != -1)
+            if (value > -1)
             {
               if (value >= MAX_PAL) value = 0;
               activeSettings.rearPalNum = currentPalette[2] = value;
