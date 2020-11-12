@@ -6,6 +6,10 @@ Written by Neil Hutchison and Tim Bates
 This Sketch is compatible with both the Reactor Zero boards and the Teensy Boards.
 If you attempt to load this sketch on a different board setup, you will get errors.
 
+Setup instructions and board info can be found here:
+
+https://github.com/joymonkey/logicengine/wiki
+
 
  BEFORE BUILDING OR UPLOADING THIS SKETCH, be sure that the config.h, fld_font.hand rld_font.h files are in the skectch folder. 
 
