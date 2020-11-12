@@ -470,6 +470,8 @@ void updateDisplays() {
 //  Still debugging this!
 void setStatusLED(uint8_t mode, unsigned long delay, uint8_t loops) {
 
+  int state;
+
   if (statusledPattern != mode)
   {
     statusledPattern = mode;
@@ -487,29 +489,34 @@ void setStatusLED(uint8_t mode, unsigned long delay, uint8_t loops) {
     firstTimeLED = false;
     ledPatternRunning = true;
     ledLoops = 0;
-    ledEndLoops = loops;
+    if (loops){
+      ledEndLoops = loops;
+    }
   }
 
   if (checkStatusDelay()) {
-    switch (mode) {
+    switch (statusledPattern) {
       case 0:
+        ledPatternRunning = false;
         if (statusFlipFlop == 0) {
           //DEBUG_PRINT_LN(statusFade);
           statusLED[0] = CRGB(0, 255, 0);
           statusLED[0] %= statusFade * 256;
+          //statusLED[0] = CHSV(0, 255, statusBrightness);
           setStatusDelay(statusFlipFlopTime);
           statusFlipFlop = statusFlipFlop ^ 1;
         }
         else {
           statusLED[0] = CRGB(255, 0, 0);
           statusLED[0] %= statusFade * 256;
+          //statusLED[0] = CHSV(100, 255, statusBrightness);
           setStatusDelay(statusFlipFlopTime);
           statusFlipFlop = statusFlipFlop ^ 1;
         }
         break;
       case 1:
-        int state = ledLoops % 2;
-        DEBUG_PRINT_LN(state);
+        state = ledLoops % 2;
+        //DEBUG_PRINT_LN(state);
 
         switch (state) {
           case 0:
@@ -525,15 +532,40 @@ void setStatusLED(uint8_t mode, unsigned long delay, uint8_t loops) {
           default:
             break;
         }
+        ledLoops++;
+        break;
+      case 10:
+        state = ledLoops % 2;
+        //DEBUG_PRINT_LN(state);
+
+        switch (state) {
+          case 0:
+            // Purple
+            statusLED[0] = CHSV(200, 255, statusBrightness);
+            setStatusDelay(delay);
+            break;
+          case 1:
+            // Off
+            statusLED[0] = CHSV(255, 0, 0);
+            setStatusDelay(delay);
+            break;
+          default:
+            break;
+        }
+        ledLoops++;
         break;
     }
   }
 
-  if ((ledPatternRunning) && (ledLoops == ledEndLoops)) {
-    // End the pattern and reset.
-    ledPatternRunning = false;
-    statusledPattern = 0; // reset to default pattern
-    statusFlipFlopTime = slowBlink;
+  if (ledPatternRunning) {
+    if (loops) {
+      if (ledLoops == ledEndLoops) {
+        // End the pattern and reset.
+        ledPatternRunning = false;
+        statusledPattern = 0; // reset to default pattern
+        statusFlipFlopTime = slowBlink;
+      }
+    }
   }
 
 }
@@ -2174,12 +2206,14 @@ void loop() {
     //PSISerial.println("Test");
     //PSISerial.write(100);
 
+    // Stuff that we only want to happen once
+    // but want to be out of the setup() to do.
     if (startup) {
       for (int i = 1; i < 4; i++) {
         runPattern(i, 255);
       }
 
-      // Dunp out the current settings
+      // Dump out the current settings
       printSettings();
 
       startup = false;
@@ -2204,6 +2238,8 @@ void loop() {
     // This Creates a running average of the POT values which helps to remove
     // any minor fluctutations in the readings.
     calcAveragePOT();
+
+    check_button();
 
     // Check the POT's and Switch setup ...
     //checkAdjSwitch();
@@ -2257,7 +2293,13 @@ void loop() {
 
   }
 
-  setStatusLED();
+  if (ledPatternRunning) {
+    setStatusLED(statusledPattern);
+  }
+  else
+  {
+    setStatusLED(0);
+  }
 
   updateDisplays();
 

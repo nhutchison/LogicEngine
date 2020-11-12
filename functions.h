@@ -57,12 +57,28 @@ int statusFlipFlopTime = slowBlink;
 bool dataRcvInProgress = false;
 bool uartRcvInProgress = false;
 
+////
+// Button State
+////
+int btn_lastState, btn_currState = LOW;
+unsigned long btn_pressedTime, btn_releasedTime, btn_durationPressed;
+uint8_t btn_numLongPresses, btn_numShortPresses = 0;
+int btn_setPalVal = -1;
+bool btn_isPressing, btn_isLongDetected = false;
+bool btn_isEndProgramming = false;
+#define SHORT_PRESS_TIME 1000
+#define LONG_PRESS_TIME 1500
+#define MAX_LONG_PRESSES 4
+
+
 
 ////
 // Function Prototypes
 ////
-void setStatusLED(uint8_t mode=0, unsigned long delay=250, uint8_t loops=2);
+void setStatusLED(uint8_t mode=0, unsigned long delay=250, uint8_t loops=0);
 bool settingsChanged();
+void setNextPal(int logicDisplay);
+void runPattern(int logicDisplay, int pattern);
 
 // Brightness control
 // This is where we'll read from the pot, etc
@@ -96,6 +112,140 @@ void calcAveragePOT() {
 
 uint8_t getAveragePOT(int potNum) {
   return POTSum[potNum] / POT_AVG_SIZE;
+}
+
+// New button handling code
+// Checks long and short press.
+// Switches into settings mode
+//int btn_lastState, btn_currState = LOW;
+//unsigned long btn_pressedTime, btn_releasedTime, btn_durationPressed;
+//bool btn_isPressing, btn_isLongDetected = false;
+void check_button() {
+
+  // get the current state
+  btn_currState = digitalRead(PAL_PIN);
+
+  //TODO:  Add debounce ...
+
+  if(btn_lastState == HIGH && btn_currState == LOW)
+  {        
+    // button is pressed
+    btn_pressedTime = millis();
+    btn_isPressing = true;
+    btn_isLongDetected = false;
+  } 
+  else if(btn_lastState == LOW && btn_currState == HIGH) 
+  { 
+    // button is released
+    btn_isPressing = false;
+    btn_releasedTime = millis();
+
+    btn_durationPressed = btn_releasedTime - btn_pressedTime;
+
+    if( btn_durationPressed < SHORT_PRESS_TIME ){
+      DEBUG_PRINT_LN("A short press is detected");
+      btn_isLongDetected = false;
+      // Once we press a short press, it will end the programming with a long press.
+      btn_isEndProgramming = true;
+      //btn_numShortPresses++;
+
+      // Increment all palettes.
+      setNextPal(btn_setPalVal);
+    }
+    //else if (btn_isLongDetected)
+    //{
+    //  // We released the button, and it was a long press
+    //  DEBUG_PRINT_LN("Clear Short Press Count.");
+    //  btn_numShortPresses = 0;
+    //}
+  }
+
+  if(btn_isPressing == true && btn_isLongDetected == false)
+  {
+    long btn_durationPressed = millis() - btn_pressedTime;
+
+    if( btn_durationPressed > LONG_PRESS_TIME ) 
+    {
+      DEBUG_PRINT_LN("A long press is detected");
+      btn_isLongDetected = true;
+
+      btn_numLongPresses++;
+      //btn_numShortPresses = 0;
+      
+      if (btn_numLongPresses > MAX_LONG_PRESSES)
+      {
+        btn_numLongPresses = 0;
+      }
+      DEBUG_PRINT("Number of Long presses: "); DEBUG_PRINT_LN(btn_numLongPresses);     
+      
+      setStatusLED(10, 500, 6);
+    }
+
+  }
+
+  // If we've detected a long press, based on the number of presses, do something ...
+  if (btn_isLongDetected && !btn_isPressing)
+  {
+    setStatusLED(1, 500);
+
+    // If we have pressed the button for a short press at least once, then the long press
+    // signifies the end of the programming.
+    //if (btn_numShortPresses > 0)
+    if (btn_isEndProgramming)
+    {
+      DEBUG_PRINT_LN("Programming Ended!");
+      // Reset everything as we're done ...
+      btn_numLongPresses = 0;
+      btn_numShortPresses = 0;
+      btn_isLongDetected = false;
+      btn_isEndProgramming = false;
+
+      // If things have changed, save them!
+      saveSettings();
+      
+      // Blink all displays, and reset the status LED.
+      setStatusLED(0, slowBlink);
+      
+    }
+    else {
+    
+      // If there are no long presses (or we've cycled all the way), then set all palettes.
+      // If One long press, set front top
+      // If 2 long presses, set front bottom
+      // If 3 long presses, set rear
+      // If 4 long presses, set both front together
+      // In each case, flash the display that will be updated...
+      switch (btn_numLongPresses)
+      {
+        case 0:
+          btn_setPalVal = -1;
+          break;
+        case 1:
+          btn_setPalVal = 1;
+          runPattern(1, 2);
+          break;
+        case 2:
+          btn_setPalVal = 2;
+         runPattern(2, 2);
+          break;
+        case 3:
+          btn_setPalVal = 3;
+          runPattern(3, 2);
+          break;
+        case 4:
+          btn_setPalVal = 4;
+          runPattern(1, 2);
+          runPattern(2, 2);
+          break;
+        default:
+          break;  
+      }
+    }
+    
+  }
+
+  // Store the button state;
+  btn_lastState = btn_currState;
 }
 
 
@@ -197,120 +347,38 @@ void compareTrimpots(byte adjMode = 0) {
   
 }
 
-//TODO - This code from Paul seems unreliable.
-// The state stracking isn't right such that if you set the switch to "front" then center, then front, 
-// it doesn't go back into fast blinky mode.  Need to look at this more closely.
-/*
-void checkAdjSwitch() {
-  
-  if (digitalRead(FADJ_PIN) == 0 && prevAdjMode != 1 && startAdjMode == 0) {
-    adjMode = 1;
-    checkTrimpots(1); //put initial trimpot values into startTrimpots[]
+void setNextPal(int logicDisplay) {
 
-    DEBUG_PRINT_LN("adj Front");
-
-    //adjMillis = millis();
-    adjLoops=0;
-    statusFlipFlopTime = fastBlink;
-  }
-  else if (digitalRead(RADJ_PIN) == 0 && prevAdjMode != 3 && startAdjMode == 0) {
-    adjMode = 3;
-    checkTrimpots(1); //put initial trimpot values into startTrimpots[]
-
-    DEBUG_PRINT_LN("adj Rear");
-
-    //adjMillis = millis();
-    adjLoops=0;
-    statusFlipFlopTime = fastBlink;
-  }
-  else if ( (prevAdjMode != 0 && digitalRead(RADJ_PIN) == 1 && digitalRead(FADJ_PIN) == 1 && startAdjMode == 0) || (adjLoops>adjLoopMax) ) {
-
-      if (adjLoops>adjLoopMax) DEBUG_PRINT_LN("MAXED OUT"); 
-      statusFlipFlopTime = slowBlink; 
-
-      //if we were in previous adjMode for way too long, save settings here  SAVE STUFF HERE and go back to regular mode!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-      if (adjLoops > adjLoopMin)  {      
-
-        //mySettings.writes++;
-        //saveSettings();
-        
-        if (adjLoops>adjLoopMax) {
-          startAdjMode=adjMode;
-          adjLoops=0;
-        }
-        adjMode = 0;
-        for (byte x = 0; x < 4; x++) adjEnabled[x] = 0; //  Reset the adjustment mode, so no more adjustments are allowed.         
-      }
-  }
-  else if (digitalRead(RADJ_PIN) == 1 && digitalRead(FADJ_PIN) == 1 && startAdjMode != 0) {
-    //adjMode didn't start off centered, which could have messed us up.
-    //now it is centered though, so let's get back to our normal state.
-    startAdjMode = 0;
-    statusFlipFlopTime = slowBlink; 
-  }
-  if (adjMode != prevAdjMode) {
-    //statusBlink(2, 250, 1, 0, 2); //blink purple 2 times
-    setStatusLED(1,250,2);
-  }
-  prevAdjMode = adjMode;
-  
-}
-*/
-
-/*
-int checkPalButton() {
-  
-  if (digitalRead(PAL_PIN) == 0) {
-    //button is held
-    DEBUG_PRINT_LN("Palette Button Held");
-    palPinLoops++;
-    if (palPinStatus == 1 && prevPalPinStatus == 1) {
-      //we just started holding the button
-      palPinStatus = 0;
-      palPinLoops=0;
-    }
-    return (0);
-  }  
-  else if (digitalRead(PAL_PIN) == 1 && palPinStatus == 0 && prevPalPinStatus == 0) {
-  //else if (digitalRead(PAL_PIN) == 1 && prevPalPinStatus == 0) {
-    //button has just been released
-    DEBUG_PRINT_LN("Palette Button Released");
-    palPinLoops++;
-    palPinStatus = 1;
-
-    // Check the Adjustment Switch to see if we're moving everything to the next Palette
-    // Or just Front/Rear ...
-    DEBUG_PRINT("Front Switch: "); DEBUG_PRINT_LN(digitalRead(FADJ_PIN));
-    DEBUG_PRINT("Rear Switch: "); DEBUG_PRINT_LN(digitalRead(RADJ_PIN));
-
-    // We change the palette when you release the button ...
-    if (digitalRead(RADJ_PIN) == 1 && digitalRead(FADJ_PIN) == 1) {
+  switch (logicDisplay) {
+    case -1:
+      // Advance all displays
       for (int i=0; i<3; i++) {
         currentPalette[i]++;
         if (currentPalette[i] == MAX_PAL) currentPalette[i] = 0;
       }
-    } else if (digitalRead(FADJ_PIN) == 0) {
-      // Advance the Front Palette only
-      currentPalette[0]++;
-      currentPalette[1]++;
-      if (currentPalette[0] == MAX_PAL) currentPalette[0] = 0;
-      if (currentPalette[1] == MAX_PAL) currentPalette[1] = 0;
-    } else if (digitalRead(RADJ_PIN) == 0) {
-      // Advance the Rear Palette only
-      currentPalette[2]++;
-      if (currentPalette[2] == MAX_PAL) currentPalette[2] = 0;
-    }
-
-    // Set the respective Target Palettes
-    frontTopTargetPalette = paletteArray[currentPalette[0]][0];
-    frontBotTargetPalette = paletteArray[currentPalette[1]][1];
-    rearTargetPalette = paletteArray[currentPalette[2]][2];
-    
-    return (palPinLoops);
+      break;
+    case 1:
+    case 2:
+    case 3:
+      // Advance the relevant logic
+      currentPalette[logicDisplay - 1]++;
+      if (currentPalette[logicDisplay - 1] == MAX_PAL) currentPalette[logicDisplay - 1] = 0;
+      break;
+    case 4:
+      // Advance both front logics
+      for (int i=0; i<2; i++) {
+        currentPalette[i]++;
+        if (currentPalette[i] == MAX_PAL) currentPalette[i] = 0;
+      }
+      break;
   }
-  prevPalPinStatus = palPinStatus;
+
+  // Set the respective Target Palettes
+  frontTopTargetPalette = paletteArray[currentPalette[0]][0];
+  frontBotTargetPalette = paletteArray[currentPalette[1]][1];
+  rearTargetPalette = paletteArray[currentPalette[2]][2];
+  
 }
-*/
 
 void saveSettings() {
     // We check to see if things have changed and only write if they have.
