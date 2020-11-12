@@ -95,3 +95,26 @@ If you attempt to load this sketch on a different board setup, you will get erro
    Mode 13 - Disco Ball - Runs Indefinitely
    Mode 21 - VU Meter (4 seconds)
    Mode 92 - VU Meter - Runs Indefinitely (Spectrum on Teeces)
+
+///////////////////// Changing Palettes using the Palette Button ///////////////////
+
+Each press of the palette button will advance the palette by one color set.
+There are a total of six sets currently available, but more can be added easily.
+
+After changing the palette, a long press (1.5 seconds or more) will save any changes.
+
+If there have been no short presses (less than 1 second), and the button is long pressed
+then the display that will be changed will flash.  Short presses will change the display.
+
+If multiple long presses are made, the display to change will cycle.  The order is:
+
+0 presses - All displays
+1 press   - Front Top Logic
+2 presses - Front Bottom Logic
+3 presses - Rear Logic
+4 presses - Both front logics
+
+It then cycles back to all displays.
+
+As noted above, after a short press in any mode where a display is
+cycled, the long press will exit programming mode, and save and settings.
