@@ -8,8 +8,7 @@ If you attempt to load this sketch on a different board setup, you will get erro
 
 Setup instructions and board info can be found here:
 
-https://github.com/joymonkey/logicengine/wiki
-
+https://github.com/joymonkey/logicengine/wiki/Reactor-Zero
 
  BEFORE BUILDING OR UPLOADING THIS SKETCH, be sure that the config.h, fld_font.hand rld_font.h files are in the skectch folder. 
 
