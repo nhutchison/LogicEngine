@@ -79,6 +79,7 @@ void setStatusLED(uint8_t mode=0, unsigned long delay=250, uint8_t loops=0);
 bool settingsChanged();
 void setNextPal(int logicDisplay);
 void runPattern(int logicDisplay, int pattern);
+void saveSettings();
 
 // Brightness control
 // This is where we'll read from the pot, etc
