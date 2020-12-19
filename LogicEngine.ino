@@ -163,9 +163,9 @@
 #include "Wire.h"
 
 // Needed for dtostrf for voltage functions
-#if defined(__SAMD21G18A__)
-#include <avr/dtostrf.h>
-#endif
+//#if defined(__SAMD21G18A__)
+//#include <avr/dtostrf.h>
+//#endif
 
 // Local .h files in the same directory as the main sketch
 #include "config.h"
@@ -1781,7 +1781,8 @@ void display_power(int logicDisplay)
   char fvalue[8];
 
   strcpy(battery_text, vlt);
-  dtostrf(battery_voltage, 4, 2, fvalue);
+  //dtostrf(battery_voltage, 4, 2, fvalue);
+  snprintf(fvalue, sizeof(fvalue), "%4.2f", battery_voltage);
   strcat(battery_text, fvalue);
   //strcat(battery_text, pct);
   //dtostrf(100 - battery_percentage, 5, 2, fvalue);
