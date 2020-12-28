@@ -56,11 +56,11 @@ https://github.com/joymonkey/logicengine/wiki/Reactor-Zero
 
  i2c:
 
- When sending i2c command the Panel Address is defined on the config.h tab to be 22.  The command type and value are needed.  
+ When sending i2c command the Panel Address is defined on the config.h tab to be 21.  The command type and value are needed.  
  To trigger a pattern, send an address (0 for all, 4 for front, 5 for rear) then the character 'T' and the Mode value corresponding 
  to the pattern list below to trigger the corresponding sequence. Sequences must be terminated with a carriage return (\r).  
  
- Using i2c with the R2 Touch app, commands must be sent in hex. For example, &220T6\r would be spelled &22,x33,x54,x36,x0D\r
+ Using i2c with the R2 Touch app, commands must be sent in hex. For example, &210T6\r would be spelled &21,x33,x54,x36,x0D\r
  
  Commands:
  
