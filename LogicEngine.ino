@@ -1776,8 +1776,8 @@ void display_power(int logicDisplay)
   battery_percentage = ((MAX_BATTERY_LEVEL - (battery_voltage)) / MAX_BATTERY_LEVEL) * 100;
 
   // Generate the display message.
-  char* vlt = "V: ";
-  char* pct = " - Bat %: ";
+  const char* vlt = "V: ";
+  const char* pct = " - Bat %: ";
   char fvalue[8];
 
   strcpy(battery_text, vlt);
@@ -1906,7 +1906,7 @@ void setText(int logicDisplay, const char* message)
 //                        1 - Front Top,
 //                        2 - Front Bottom,
 //                        3 - Rear
-void scrollMessage(char messageString[], int logicDisplay, int font, int italic_slant, CRGB color, uint8_t scrollNum) {
+void scrollMessage(char messageString[], int logicDisplay, int font, int italic_slant, CRGB color, uint16_t scrollNum) {
 
   // setup first time stuff
   if (firstTime[logicDisplay - 1]) {
@@ -2255,11 +2255,8 @@ void loop() {
 
     // Ok, so this is a hack .. and I don't like it, but it makes the Teensy work, so it's only here if you're compiling for Teensy
     // I will remove this when I can figure out the reality of what is actually needed!
-#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MK64FX512__) || defined(__MK66FX1M0__)
-    // On the Teensy, cann the Serial handler directly as it doesn't seem to be getting caught in the interrupt handler
-    // the way it should be!
+    // Aditionally if you built on windows this seems to be needed!
     serialEvent();
-#endif
 
     // Once per main loop tick we read the voltage from the Voltage Pin, and calculate the battery levels.
     // This way we just use it when it's needed.
@@ -2712,8 +2709,11 @@ void doMcommand(int address, char* message)
   //serialPort->print(" Argument: ");
   //serialPort->print(message);
 
-  //TODO : Text on all
-  //if(address==0) {setText(FLD_TOP, message); setText(FLD_BOTTOM, message); setText(RLD, message);}
+  if(address==0) {
+    setText(FLD_TOP, message);
+    setText(FLD_BOTTOM, message);
+    setText(RLD, message);
+  }
   if (address == 1) {
     setText(FLD_TOP, message);
   }

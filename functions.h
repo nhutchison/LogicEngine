@@ -98,7 +98,7 @@ void calcAveragePOT() {
   for (int i=0; i<4; i++) {
     
     POTSum[i] -= POTReadings[i][POTIndex[i]];
-    if (i == 0) POTReadings[0][POTIndex[i]] = map(analogRead(delayPin), 0, 1023, MIN_DELAY, MAX_DELAY);
+    if (i == 0) POTReadings[0][POTIndex[i]] = map(analogRead(delayPin), 0, 1023, MINIMUM_DELAY, MAX_DELAY);
     else if (i == 1) POTReadings[1][POTIndex[i]] = map(analogRead(fadePin), 0, 1023, 0, MAX_FADE);
     else if (i == 2) POTReadings[2][POTIndex[i]] = map(analogRead(briPin), 0, 1023, MIN_BRI, MAX_BRI);
     else if (i == 3) POTReadings[3][POTIndex[i]] = map(analogRead(huePin), 0, 1023, 0, MAX_PAL);
@@ -256,13 +256,13 @@ void checkTrimpots(bool startTrim = 0) {
   //check the current trimpot values and put them into startTrimpots[] or loopTrimpots[]
   //DEBUG_PRINT("StartTrim ");DEBUG_PRINT_LN(startTrim);
   if (startTrim == 0) {
-    loopTrimpots[0] = getAveragePOT(0); //map(analogRead(delayPin), 0, 1023, MIN_DELAY, MAX_DELAY);
+    loopTrimpots[0] = getAveragePOT(0); //map(analogRead(delayPin), 0, 1023, MINIMUM_DELAY, MAX_DELAY);
     loopTrimpots[1] = getAveragePOT(1); //map(analogRead(fadePin), 0, 1023, 0, MAX_FADE);
     loopTrimpots[2] = getAveragePOT(2); //map(analogRead(briPin), 0, 1023, MIN_BRI, activeSettings.maxBri);
     loopTrimpots[3] = getAveragePOT(3); //map(analogRead(huePin), 0, 1023, 0, MAX_PAL);
   }
   else {
-    startTrimpots[0] = getAveragePOT(0);//map(analogRead(delayPin), 0, 1023, MIN_DELAY, MAX_DELAY);
+    startTrimpots[0] = getAveragePOT(0);//map(analogRead(delayPin), 0, 1023, MINIMUM_DELAY, MAX_DELAY);
     startTrimpots[1] = getAveragePOT(1);//map(analogRead(fadePin), 0, 1023, 0, MAX_FADE);
     startTrimpots[2] = getAveragePOT(2);//map(analogRead(briPin), 0, 1023, MIN_BRI, activeSettings.maxBri);
     startTrimpots[3] = getAveragePOT(3);//map(analogRead(huePin), 0, 1023, 0, MAX_PAL);

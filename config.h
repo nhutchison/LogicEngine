@@ -180,7 +180,7 @@ DEFINE_GRADIENT_PALETTE( rear_gp ) {
  50,   0,     255, 0,   //bright green
 140,   180, 255, 1,   //yellow green
 210,   246, 172, 0,   //orangey yellow
-290,   255,   0,   0,   //red
+255,   255,   0,   0,   //red
 255,   0,    0,    0};  //black
 
 DEFINE_GRADIENT_PALETTE( rear_gp2 ) {
@@ -357,7 +357,7 @@ uint8_t rearLedMatrix[REAR_COL][REAR_ROW] = {
 
 // We generate the columns slightly differently for scrolling text.
 // This is a right slanted
-uint8_t rearScrollLedMatrixRight[REAR_COL+2][REAR_ROW] = {
+int8_t rearScrollLedMatrixRight[REAR_COL+2][REAR_ROW] = {
 #ifndef RLD112
   {  0, -1, -1, -1,},
   {  1, 47, 48, -1,},
@@ -420,7 +420,7 @@ uint8_t rearScrollLedMatrixRight[REAR_COL+2][REAR_ROW] = {
 };
 
 // We generate the columns slightly differently for scrolling text.
-uint8_t rearScrollLedMatrixLeft[REAR_COL+1][REAR_ROW] = {
+int8_t rearScrollLedMatrixLeft[REAR_COL+1][REAR_ROW] = {
 #ifndef RLD112
   { -1, -1, 48, 95,},
   {  0, 47, 49, 94,},
@@ -488,7 +488,7 @@ int vu_level[3][REAR_COL+2] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
 // Yes it's a little strange, but lets use the matrix to split out "bars"
 // This is a right slanted
-uint8_t rearVULedMatrixRight[REAR_COL+2][REAR_ROW] = {
+int8_t rearVULedMatrixRight[REAR_COL+2][REAR_ROW] = {
   {  0, -1, -1, -1,},
   {  1, 47, -1, -1,},
   {  2, 46, 49, -1,},
@@ -603,7 +603,7 @@ uint8_t statusBrightness=25; // set as uint8_t so it can be changed in code real
 
 #define MAX_FADE 15
 #define MAX_DELAY 500
-#define MIN_DELAY 10
+#define MINIMUM_DELAY 10
 #define MIN_BRI 3 // Lower than 3 and some LED's won't light at certain colors.
 #define MAX_BRI 200 // Use this to control the max allowed.
 
