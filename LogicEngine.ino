@@ -983,6 +983,8 @@ void loopsDonedoRestoreDefault(uint8_t logicDisplay)
   {
     // Set back to the default pattern
     lastEventCode[logicDisplay - 1] = defaultPattern;
+    lastEventDuration[logicDisplay - 1] = 0;
+    ledPatternState[logicDisplay - 1] = 0;
     patternRunning[logicDisplay - 1] = false;
   }
 }
@@ -994,6 +996,8 @@ void globalTimerDonedoRestoreDefault(int logicDisplay)
     globalPatternLoops[logicDisplay - 1] = 0;
     // Global timeout expired, go back to default mode.
     lastEventCode[logicDisplay - 1] = defaultPattern;
+    lastEventDuration[logicDisplay - 1] = 0;
+    ledPatternState[logicDisplay - 1] = 0;
     patternRunning[logicDisplay - 1] = false;
   }
 }
@@ -1791,8 +1795,8 @@ void display_power(int logicDisplay)
   // We set the text to the Bottom Logic, just print that.
   DEBUG_PRINT_LN(battery_text);
 
-  setText(FLD_BOTTOM, battery_text);
-  runPattern(FLD_BOTTOM, 98);
+  setText(logicDisplay, battery_text);
+  runPattern(logicDisplay, 98);
 
 }
 
