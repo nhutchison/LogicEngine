@@ -144,6 +144,7 @@
       Mode 4   - Short Circuit (10 seconds)
       Mode 5   - Scream (4 seconds)
       Mode 6   - Leia Message (34 seconds)
+      Mode 10  - Star Wars - Title Scroll (15 seconds)
       Mode 11  - Imperial March (47 seconds)
       Mode 12  - Disco Ball (4 seconds)
       Mode 13  - Disco Ball - Runs Indefinitely
@@ -153,6 +154,7 @@
       Mode 98  - Scroll Text (set by M command) - Scroll in English (Used by Display Voltage)
       Mode 99  - Scroll Text (set by M command) - Scroll in Aurebesh (Front Logics only -  Rear only supports English)
       Mode 100 - Scroll Text (set by M command).  Uses P command settings for language, and G command settings for color
+      Mode 110 - Imperial March (8 loops)
 
    Most users shouldn't need to change anything below this line. Please see the config.h tab
    for user adjustable settings.
@@ -225,9 +227,11 @@ unsigned long interval = 5;  // Limits us to 200 updates per second.
 ///
 bool firstTime[3];
 bool patternRunning[3] = {false, false, false};
+
 uint8_t lastEventCode[3] = {defaultPattern, defaultPattern, defaultPattern};
+unsigned long lastEventDuration[3] = {0, 0, 0};
 uint8_t globalPatternLoops[3];
-uint8_t ledPatternState[3];
+int ledPatternState[3];
 int updateLed = 0;
 
 // LED State
@@ -1727,8 +1731,8 @@ void Cylon_Row(int logicDisplay, CRGB color, unsigned long time_delay, int type,
 
   if (firstTime[logicDisplay - 1]) {
     DEBUG_PRINT("Cylon Row");
-    firstTime[logicDisplay - 1] = false;
-    patternRunning[logicDisplay - 1] = true;
+    //firstTime[logicDisplay - 1] = false;
+    //patternRunning[logicDisplay - 1] = true;
     if (loops != 0) globalPatternLoops[logicDisplay - 1] = loops;
     if ((runtime != 0) && (!timingReceived)) set_global_timeout(logicDisplay, runtime);
     if (timingReceived) set_global_timeout(logicDisplay, commandTiming);
@@ -2007,6 +2011,7 @@ void scrollMessage(char messageString[], int logicDisplay, int font, int italic_
   if ((currentCharShiftsRemaining[logicDisplay - 1] == 0) && (strlen((const char*)messageString) == scrollCount[logicDisplay - 1])) {
     DEBUG_PRINT("Scrolling Done "); DEBUG_PRINT_LN(logicDisplay);
     lastEventCode[logicDisplay - 1] = defaultPattern;
+    lastEventDuration[logicDisplay - 1] = 0;
     patternRunning[logicDisplay - 1] = false;
   }
 }
@@ -2236,6 +2241,7 @@ void loop() {
       {
         //DEBUG_PRINT("No Pattern Running "); DEBUG_PRINT_LN(i);
         lastEventCode[i] = defaultPattern;
+        lastEventDuration[i] = 0;
         runPattern(i + 1, lastEventCode[i]);
       }
     }
@@ -2320,9 +2326,10 @@ void runPattern(int logicDisplay, int pattern) {
 
   // Used to restore state if an invalid pattern code is received.
   int currentPattern = lastEventCode[logicDisplay - 1];
-
+  unsigned long currentDuration = lastEventDuration[logicDisplay - 1];
   if (lastEventCode[logicDisplay - 1] != pattern)
   {
+    if (timingReceived == 1) lastEventDuration[logicDisplay - 1] = commandTiming;
     lastEventCode[logicDisplay - 1] = pattern;
     firstTime[logicDisplay - 1] = true;
     DEBUG_PRINT("Start Pattern "); DEBUG_PRINT(pattern); DEBUG_PRINT(" on "); DEBUG_PRINT_LN(logicDisplay);
@@ -2363,8 +2370,12 @@ void runPattern(int logicDisplay, int pattern) {
       //logicDisplay, color, time_delay, type, loops, runtime
       Cylon_Row(logicDisplay, 0xcccccc, 120, 3, 0, 34);
       break;
-    case 11:            // 11 = March 47 seconds.
-      March(logicDisplay, 0xcccccc, 552, 0, 47);
+    case 10:            // 10 = Scroll Up 8 seconds ala Star Wars Issue 1.1.c
+      //logicDisplay, color, time_delay, type, loops, runtime
+      Cylon_Row(logicDisplay, 0xcccccc, 500, 4, 0, 8);
+      break;
+    case 11:           // 11 = March Loop (47s)
+      March(logicDisplay, 0xcccccc, 552, 42, 47);
       break;
     case 12:            // 12 = Disco Ball 4 seconds
       DiscoBall(logicDisplay, 150, 0, 3, CRGB::Grey, 4, 0);
@@ -2395,6 +2406,9 @@ void runPattern(int logicDisplay, int pattern) {
       // We loop 1000 times, which allows the MArcDuino to Keep scrolling the message until it sends the "end" command.
       scrollMessage(logicText[logicDisplay - 1], logicDisplay, alphabetType[logicDisplay - 1], activeSettings.rearScrollSlant, fontColor[logicDisplay - 1], 1000);
       break;
+    case 110:           // 11 = March Loop 8x //
+      March(logicDisplay, 0xcccccc, 552, 8, 0);
+      break;
     case 255:           //Used for the Startup Message.
       //messageString[], logicDisplay, font, italic_slant, color) {
       scrollMessage(logicText[logicDisplay - 1], logicDisplay, alphabetType[logicDisplay - 1], activeSettings.rearScrollSlant, fontColor[logicDisplay - 1], 1);
@@ -2402,6 +2416,11 @@ void runPattern(int logicDisplay, int pattern) {
     default:
       DEBUG_PRINT("Pattern "); DEBUG_PRINT(pattern); DEBUG_PRINT_LN(" not valid.  Ignoring");
       lastEventCode[logicDisplay - 1] = currentPattern;
+      lastEventDuration[logicDisplay - 1] = currentDuration; 
+      if (lastEventDuration[logicDisplay - 1] != 0) { 
+        timingReceived = true;
+        commandTiming = lastEventDuration[logicDisplay - 1];
+      }
       firstTime[logicDisplay - 1] = false;
       break;
   }
