@@ -3211,6 +3211,7 @@ void doGcommand(int address, char* argument)
 
 void printSettings()
 {
+#ifdef DEBUG
   DEBUG_PRINT("Total Flash Writes: "); DEBUG_PRINT_LN(activeSettings.writes);
   DEBUG_PRINT("Max Brightness: "); DEBUG_PRINT_LN(activeSettings.maxBri);
   DEBUG_PRINT("FTL Delay: "); DEBUG_PRINT_LN(activeSettings.frontTopDelay);
@@ -3255,5 +3256,6 @@ void printSettings()
   // It's only dine for the REactor Zero, since that's the board that has no EEPROM
   DEBUG_PRINT("Data changed from flash stored version: ");
   settingsChanged() ? DEBUG_PRINT_LN("YES") : DEBUG_PRINT_LN("NO");
+#endif
 
 }

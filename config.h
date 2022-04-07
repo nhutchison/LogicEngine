@@ -111,7 +111,15 @@ float MAX_BATTERY_LEVEL = 5.0;
 
 #if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MK64FX512__) || defined(__MK66FX1M0__)
   #define FRONT_PIN 21
-  #define REAR_PIN 22
+
+  #ifdef RLD112  
+    #define REAR_DAT_PIN 9  // Used for the 112 LED version
+    #define REAR_CLK_PIN 22   // Used for the 112 LED version
+  #else
+    #define REAR_PIN 22 // This is the same pin as used in the 112 version
+  #endif
+
+  
   #define STATUSLED_PIN 10
   // POT and SWITCH PINS ....
   #define delayPin A1 //15analog pin to read keyPause value
